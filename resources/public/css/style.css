@@ -1,0 +1,56 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    background-color: #555;
+    height: 100%;
+}
+
+body {
+    background: #222;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    color: #fff;
+    font: 100%/1.5 sans-serif;
+    overflow: hidden;
+}
+
+.controls {
+    font-size: 20px;
+    padding-bottom: 2%;
+    text-align: center;
+}
+
+.stage {
+    bottom: 0;
+    left: 0;
+    margin: auto;
+    position: absolute;
+    right: 0;
+    top: 0;
+    z-index: 2;
+}
+
+.cell {
+    background-color: rgba(0, 0, 0, 0.15);
+}
+
+.snake-on-cell {
+    background-color: #e30b5c;
+
+}
+
+.sweet {
+    background-color: rgb(119, 255, 51);
+    border-radius: 100%;
+}
+
+.board-element {
+    padding-left: 2%;
+    padding-right: 0;
+    padding-top: 2%;
+    padding-bottom: 0;
+}

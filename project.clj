@@ -20,6 +20,8 @@
                  [org.webjars.bower/tether "1.3.7"]
                  [org.webjars/bootstrap "4.0.0-alpha.5"]
                  [org.webjars/font-awesome "4.6.3"]
+                 [reagent "0.6.0"]
+                 [re-frame "0.8.0"]
                  [ring-middleware-format "0.7.0"]
                  [ring-webjars "0.1.1"]
                  [ring/ring-defaults "0.2.1"]
