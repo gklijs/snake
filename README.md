@@ -19,3 +19,5 @@ To start a web server for the application, run:
 ## License
 
 Copyright © 2016 FIXME
+
+see http://stackoverflow.com/questions/35028591/react-dangerouslysetinnerhtml-to-render-an-iframe-youtube-embed-from-props

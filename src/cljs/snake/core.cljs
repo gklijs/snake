@@ -53,7 +53,7 @@
     (update-in snake [:body] #(into [] (drop-last (cons head-new-position body))))))
 
 (defn collisions
-  "Todo this should be changed to check if the head isn't hitting another snake, itself is fine."
+   "Check whether the snake is hit by himself, causing it to die"
   [snake]
   (let [head (first (:body snake))
         body (rest (:body snake))]
@@ -133,16 +133,8 @@
                     :game-running?     false
                     :direction-changed false
                     :stored-direction  false
-                    :sel-menu-item     "home"})
-
-(def restart-state {:board             initial-board
-                    :snake             initial-snake
-                    :sweets            initial-sweets
-                    :points            0
-                    :game-running?     true
-                    :direction-changed false
-                    :stored-direction  false
-                    :sel-menu-item     "single"})
+                    :sel-menu-item     "home"
+                    :slide             1})
 
 ;; -- Event Handlers ----------------------------------------------------------
 
@@ -154,44 +146,72 @@
 
 (reg-event-db
   :change-direction
-  (fn [{:keys [snake direction-changed] :as db} [_ new-direction]]
-    (if (not direction-changed)
-      (if (not= (map #(* % -1) (:direction snake)) new-direction)
-        (-> db
-            (assoc-in [:snake :direction] new-direction)
-            (assoc :direction-changed true))
-        db)
-      (assoc db :stored-direction new-direction))))
+  (fn [{:keys [snake direction-changed sel-menu-item sel-menu-item slide] :as db} [_ new-direction]]
+    (cond
+        (= sel-menu-item "single")
+            (if (not direction-changed)
+              (if (not= (map #(* % -1) (:direction snake)) new-direction)
+                (-> db
+                    (assoc-in [:snake :direction] new-direction)
+                    (assoc :direction-changed true))
+                db)
+              (assoc db :stored-direction new-direction))
+        (= sel-menu-item "presentation")
+             (cond
+             (= [1 0] new-direction) (-> db
+                     (assoc :slide (inc slide)))
+             (= [-1 0] new-direction) (-> db
+                      (assoc :slide (dec slide)))
+              :default db)
+        :default db
+    )
+  ))
 
 (reg-event-db
   :next-state
   (fn
-    [{:keys [snake board] :as db} _]
-    (if (:game-running? db)
-      (if (collisions snake)
-        (assoc-in db [:game-running?] false)
-        (-> db
-            (pop-stored-direction)
-            (update :snake move-snake board)
-            (as-> after-move
-                  (process-movement after-move))
-            (update :sweets handle-sweets snake board)))
-      db)))
+    [{:keys [snake board sel-menu-item slide] :as db} _]
+    (cond
+        (= sel-menu-item "single")
+            (if (:game-running? db)
+                  (if (collisions snake)
+                    (assoc-in db [:game-running?] false)
+                    (-> db
+                        (pop-stored-direction)
+                        (update :snake move-snake board)
+                        (as-> after-move
+                              (process-movement after-move))
+                        (update :sweets handle-sweets snake board)))
+                  db)
+        (= sel-menu-item "presentation")
+            (assoc-in db [:slide?] 2)
+        :default db
+      )))
 
 (reg-event-db
   :switch-game-running
   (fn
-    [{:keys [game-running? snake] :as db} _]
-        (if (collisions snake)
-        (merge db restart-state)
+    [{:keys [game-running? snake board] :as db} _]
+        (when (collisions snake)
+            (assoc-in db [:game-running?] true)
+            (assoc-in db [:sweets] [[]])
+            (assoc-in db [:snake] (rand-snake board))
+            (assoc-in db [:points] 0))
         (assoc-in db [:game-running?] (not (:game-running? db)))
-        )))
+        ))
 
 (reg-event-db
   :sel-menu-item
   (path [:sel-menu-item])
   (fn
     [sel-menu-item [_ value]]
+    value))
+
+(reg-event-db
+  :slide
+  (path [:slide])
+  (fn
+    [slide [_ value]]
     value))
 
 ;; -- Subscription Handlers ---------------------------------------------------
@@ -248,6 +268,12 @@
     [db _]
     (:sel-menu-item db)))
 
+(reg-sub
+  :slide
+  (fn
+    [db _]
+    (:slide db)))
+
 ;; -- View Components ---------------------------------------------------------
 
 (defn render-board
@@ -270,6 +296,14 @@
                               :else [:div.col-xs.board-element.cell]))))]
         (into [:div.container]
               cells)))))
+
+(defn render-slide
+    "will show different content, depending on the number of the slide"
+    []
+    (let [slide (subscribe [:slide])]
+    (fn
+        []
+        [:div.slide [:p (str "Slide number: " @slide)]])))
 
 (defn score
   "Renders the player's score"
@@ -310,6 +344,14 @@
     ]]
    [render-board]])
 
+(defn presentation
+  "The presentation rendering function"
+  []
+  [:div
+   [:div.container.controls [:div.row.flex-items-xs-center
+       [:div.col-xs.board-element [render-slide]]]
+    ]])
+
 (defn content-switcher
   "Selects which content to show in the app"
   []
@@ -318,7 +360,8 @@
       []
       (cond
         (= @sel-menu-item "single") [game]
-        :else [:div [:p "Someday this will show something like " + @sel-menu-item]])
+        (= @sel-menu-item "presentation") [presentation]
+        :else [:div.container [:div.row.flex-items-xs-center [:h1 "Some day this might show " + @sel-menu-item]]])
       )))
 
 (defn menu
@@ -332,6 +375,7 @@
        [(switch-button "single")]
        [(switch-button "multi")]
        [(switch-button "highscores")]
+       [(switch-button "presentation")]
     ]]])
 
 ;; -- Entry Point -------------------------------------------------------------
