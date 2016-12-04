@@ -1,4 +1,5 @@
-(ns snake.presentation)
+(ns snake.presentation
+    (:require [re-frame.core :refer [subscribe]]))
 
 (def my-presentation
     [
@@ -74,3 +75,33 @@
         :first "If time allows it."
     }
     ])
+
+;; -- View Components ---------------------------------------------------------
+
+(defn render-slide
+    "will show different content, depending on the number of the slide"
+    []
+    (let [slide (subscribe [:slide])]
+    (fn
+        []
+        (cond
+            (> 0 @slide)[:div.slide [:h1 "Myself, Devoxx, Clojure, Clojurescript"][:p][:img {:src "/img/clojure-logo.png"}][:p][:p "Press right to go to the first slide"]]
+            (<= (count my-presentation) @slide)[:div.slide [:h1 "The end"][:p][:img {:src "/img/end.png"}][:p][:p "Press left to go back to the slide"]]
+            :default (let [my-slide (nth my-presentation @slide)]
+                [:div.slide
+                [:h1.presentation-title (:title my-slide)]
+                (if (:first my-slide) [:p.presentation-text (:first my-slide)])
+                (if (:second my-slide) [:p.presentation-text (:second my-slide)])
+                (if (:third my-slide) [:p.presentation-text (:third my-slide)])
+                (if (:youtube my-slide) [:iframe {:width "100%" :height "700px" :src (str "https://www.youtube.com/embed/" (:youtube my-slide))}])
+            ])
+        )
+    )))
+
+(defn presentation
+  "The presentation rendering function"
+  []
+  [:div
+   [:div.container [:div.row.flex-items-xs-center
+       [:div.col-xs [render-slide]]]
+    ]])
