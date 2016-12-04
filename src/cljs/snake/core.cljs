@@ -1,6 +1,6 @@
 (ns snake.core
     (:require-macros [reagent.ratom :refer [reaction]])
-    (:require [snake.presentation :refer [my-presentation]]
+    (:require [snake.presentation :as presentation]
               [reagent.core :as reagent :refer [atom]]
               [re-frame.core :refer [reg-event-db path reg-sub subscribe dispatch dispatch-sync]]
               [goog.events :as events]))
@@ -306,8 +306,8 @@
         []
         (cond
             (> 0 @slide)[:div.slide [:h1 "Myself, Devoxx, Clojure, Clojurescript"][:p][:img {:src "/img/clojure-logo.png"}][:p][:p "Press right to go to the first slide"]]
-            (<= (count my-presentation) @slide)[:div.slide [:h1 "The end"][:p][:img {:src "/img/end.png"}][:p][:p "Press left to go back to the slide"]]
-            :default (let [my-slide (nth my-presentation @slide)]
+            (<= (count presentation/my-presentation) @slide)[:div.slide [:h1 "The end"][:p][:img {:src "/img/end.png"}][:p][:p "Press left to go back to the slide"]]
+            :default (let [my-slide (nth presentation/my-presentation @slide)]
                 [:div.slide
                 [:h1.presentation-title (:title my-slide)]
                 (if (:first my-slide) [:p.presentation-text (:first my-slide)])
