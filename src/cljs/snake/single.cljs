@@ -93,7 +93,7 @@
 
 (defn next-state
     "gives the next state of the db"
-    [db]
+    [{:keys [snake game-running board sweets] :as db}]
     (if (:game-running? db)
           (if (collisions snake)
             (assoc-in db [:game-running?] false)
