@@ -124,7 +124,7 @@
   (path [:messages])
   (fn
     [messages [_ value]]
-      (conj messages value)))
+    (take 5 (conj messages value))))
 
 ;; -- Subscription Handlers ---------------------------------------------------
 

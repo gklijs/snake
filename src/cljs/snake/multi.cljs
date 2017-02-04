@@ -73,4 +73,4 @@
     [message-input]]]]])
 
 (defn initsocket []
- (make-websocket! (str "ws://" (.-host js/location) "/ws") update-messages!))
+ (make-websocket! (str "ws://" (.-host js/location) "/chat") update-messages!))

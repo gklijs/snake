@@ -23,4 +23,4 @@
                 (on-receive channel #(notify-clients %))))
 
 (defroutes websocket-routes
-           (GET "/ws" request (ws-handler request)))
+           (GET "/chat" request (ws-handler request)))
