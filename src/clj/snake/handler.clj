@@ -2,6 +2,7 @@
   (:require [compojure.core :refer [routes wrap-routes]]
             [snake.layout :refer [error-page]]
             [snake.routes.home :refer [home-routes]]
+            [snake.routes.websocket :refer [websocket-routes]]
             [compojure.route :as route]
             [snake.env :refer [defaults]]
             [mount.core :as mount]
@@ -14,8 +15,9 @@
 (def app-routes
   (routes
     (-> #'home-routes
-        (wrap-routes middleware/wrap-csrf)
-        (wrap-routes middleware/wrap-formats))
+        (wrap-routes middleware/wrap-csrf))
+    (-> #'websocket-routes
+        (wrap-routes middleware/wrap-csrf))
     (route/not-found
       (:body
         (error-page {:status 404

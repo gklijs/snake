@@ -2,6 +2,7 @@
     (:require-macros [reagent.ratom :refer [reaction]])
     (:require [snake.presentation :as presentation]
               [snake.single :as single]
+              [snake.multi :as multi]
               [reagent.core :as reagent :refer [atom]]
               [re-frame.core :refer [reg-event-db path reg-sub subscribe dispatch dispatch-sync]]
               [goog.events :as events]))
@@ -47,7 +48,8 @@
                     :direction-changed false
                     :stored-direction  false
                     :sel-menu-item     "home"
-                    :slide             -1})
+                    :slide             -1
+                    :messages          []})
 
 ;; -- Event Handlers ----------------------------------------------------------
 
@@ -117,6 +119,13 @@
     [slide [_ value]]
     value))
 
+(reg-event-db
+  :messages
+  (path [:messages])
+  (fn
+    [messages [_ value]]
+      (conj messages value)))
+
 ;; -- Subscription Handlers ---------------------------------------------------
 
 (reg-sub
@@ -177,6 +186,12 @@
     [db _]
     (:slide db)))
 
+(reg-sub
+  :messages
+  (fn
+    [db _]
+    (:messages db)))
+
 ;; -- View Components ---------------------------------------------------------
 
 (defn switch-button
@@ -199,6 +214,7 @@
       (cond
         (= @sel-menu-item "single") [single/game]
         (= @sel-menu-item "presentation") [presentation/presentation]
+        (= @sel-menu-item "multi") [multi/multi]
         :else [:div.container [:div.row.flex-items-xs-center [:h1 "Some day this might show " + @sel-menu-item]]])
       )))
 
@@ -229,6 +245,7 @@
   "The main app function"
   []
   (dispatch-sync [:initialize])
+  (multi/initsocket)
   (mount-components)
   )
 
