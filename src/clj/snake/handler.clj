@@ -2,7 +2,8 @@
   (:require [compojure.core :refer [routes wrap-routes]]
             [snake.layout :refer [error-page]]
             [snake.routes.home :refer [home-routes]]
-            [snake.routes.websocket :refer [websocket-routes]]
+            [snake.routes.chatsocket :refer [chatsocket-routes]]
+            [snake.routes.gamesocket :refer [gamesocket-routes]]
             [compojure.route :as route]
             [snake.env :refer [defaults]]
             [mount.core :as mount]
@@ -16,7 +17,9 @@
   (routes
     (-> #'home-routes
         (wrap-routes middleware/wrap-csrf))
-    (-> #'websocket-routes
+    (-> #'chatsocket-routes
+        (wrap-routes middleware/wrap-csrf))
+    (-> #'gamesocket-routes
         (wrap-routes middleware/wrap-csrf))
     (route/not-found
       (:body

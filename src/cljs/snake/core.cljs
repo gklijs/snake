@@ -246,7 +246,7 @@
   "The main app function"
   []
   (dispatch-sync [:initialize])
-  (multi/initsocket)
+  (multi/initsockets)
   (mount-components)
   )
 

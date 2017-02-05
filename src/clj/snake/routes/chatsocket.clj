@@ -1,4 +1,4 @@
-(ns snake.routes.websocket
+(ns snake.routes.chatsocket
  (:require [compojure.core :refer [GET defroutes]]
            [org.httpkit.server
             :refer [send! with-channel on-close on-receive]]
@@ -22,5 +22,5 @@
                 (on-close channel (partial disconnect! channel))
                 (on-receive channel #(notify-clients %))))
 
-(defroutes websocket-routes
+(defroutes chatsocket-routes
            (GET "/chat" request (ws-handler request)))

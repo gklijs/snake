@@ -3,7 +3,8 @@
            [reagent.core :as reagent :refer [atom]]
            [re-frame.core :refer [subscribe dispatch]]))
 
-(defonce ws-chan (atom nil))
+(defonce ws-chan-chat (atom nil))
+(defonce ws-chan-game (atom nil))
 (def json-reader (t/reader :json))
 (def json-writer (t/writer :json))
 
@@ -15,18 +16,33 @@
 
 (defn send-transit-msg!
  [msg]
- (if @ws-chan
-   (.send @ws-chan (t/write json-writer msg))
+ (if @ws-chan-chat
+   (.send @ws-chan-chat (t/write json-writer msg))
    (throw (js/Error. "Websocket is not available!"))))
 
-(defn make-websocket! [url receive-handler]
- (println "attempting to connect websocket")
+(defn send-transit-game!
+  [msg]
+  (if @ws-chan-game
+    (.send @ws-chan-game (t/write json-writer msg))
+    (throw (js/Error. "Websocket is not available!"))))
+
+(defn make-chat-websocket! [url receive-handler]
+ (println "attempting to connect chat websocket")
  (if-let [chan (js/WebSocket. url)]
    (do
      (set! (.-onmessage chan) (receive-transit-msg! receive-handler))
-     (reset! ws-chan chan)
-     (println "Websocket connection established with: " url))
-   (throw (js/Error. "Websocket connection failed!"))))
+     (reset! ws-chan-chat chan)
+     (println "Chat websocket connection established with: " url))
+   (throw (js/Error. "Chat websocket connection failed!"))))
+
+(defn make-game-websocket! [url receive-handler]
+  (println "attempting to connect game websocket")
+  (if-let [chan (js/WebSocket. url)]
+    (do
+      (set! (.-onmessage chan) (receive-transit-msg! receive-handler))
+      (reset! ws-chan-game chan)
+      (println "Game websocket connection established with: " url))
+    (throw (js/Error. "Game websocket connection failed!"))))
 
 (defn message-input []
  (let [value (atom nil)]
@@ -40,6 +56,19 @@
        #(when (= (.-keyCode %) 13)
           (send-transit-msg! @value)
           (reset! value nil))}])))
+
+(defn game-input []
+  (let [value (atom nil)]
+    (fn []
+      [:input.form-control
+       {:type :text
+        :placeholder "type in something and press enter"
+        :value @value
+        :on-change #(reset! value (-> % .-target .-value))
+        :on-key-down
+        #(when (= (.-keyCode %) 13)
+           (send-transit-game! @value)
+           (reset! value nil))}])))
 
 (defn update-messages!
     "updates the messages"
@@ -70,7 +99,11 @@
     [message-list]]]
   [:div.row
    [:div.col-sm-6
-    [message-input]]]]])
+    [message-input]]]
+  [:div.row
+   [:div.col-sm-6
+    [game-input]]]]])
 
-(defn initsocket []
- (make-websocket! (str "ws://" (.-host js/location) "/chat") update-messages!))
+(defn initsockets []
+ (make-chat-websocket! (str "ws://" (.-host js/location) "/chat") update-messages!)
+  (make-game-websocket! (str "ws://" (.-host js/location) "/game") update-messages!))
