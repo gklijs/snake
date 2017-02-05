@@ -1,6 +1,7 @@
 (ns snake.core
     (:require-macros [reagent.ratom :refer [reaction]])
-    (:require [snake.presentation :as presentation]
+    (:require [snake.snakepure :as snakepure]
+              [snake.presentation :as presentation]
               [snake.single :as single]
               [snake.multi :as multi]
               [reagent.core :as reagent :refer [atom]]
@@ -38,7 +39,7 @@
 (def initial-sweets {:max-number 20
              :locations []})
 
-(def initial-snake (single/rand-snake initial-board))
+(def initial-snake (snakepure/rand-snake initial-board))
 
 (def initial-state {:board             initial-board
                     :snake             initial-snake
@@ -88,7 +89,7 @@
     [{:keys [snake board sel-menu-item slide] :as db} _]
     (cond
         (= sel-menu-item "single")
-            (single/next-state db)
+            (snakepure/next-state db)
         :default db
       )))
 
@@ -96,9 +97,9 @@
   :switch-game-running
   (fn
     [{:keys [game-running? snake board] :as db} _]
-        (if (single/collisions snake)
+        (if (snakepure/collisions snake)
             (-> db
-            (assoc :snake (single/rand-snake board))
+            (assoc :snake (snakepure/rand-snake board))
             (assoc-in [:sweets :locations] [])
             (assoc :points 0)
             (assoc :game-running? true))
