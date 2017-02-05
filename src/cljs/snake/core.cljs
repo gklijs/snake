@@ -213,9 +213,9 @@
     (fn
       []
       (cond
-        (= @sel-menu-item "single") [single/game]
-        (= @sel-menu-item "presentation") [presentation/presentation]
-        (= @sel-menu-item "multi") [multi/multi]
+        (= @sel-menu-item "single") [single/view]
+        (= @sel-menu-item "presentation") [presentation/view]
+        (= @sel-menu-item "multi") [multi/view]
         :else [:div.container [:div.row.flex-items-xs-center [:h1 "Some day this might show " + @sel-menu-item]]])
       )))
 

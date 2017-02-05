@@ -98,7 +98,7 @@
         )
     )))
 
-(defn presentation
+(defn view
   "The presentation rendering function"
   []
   [:div

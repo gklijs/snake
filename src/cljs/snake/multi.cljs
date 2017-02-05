@@ -86,7 +86,7 @@
        ^{:key i}
        [:li message])]))
 
-(defn multi
+(defn view
   "The multi rendering function"
   []
   [:div

@@ -42,7 +42,7 @@
       (str (if @game-running? "Pause" "Start"))
       ])))
 
-(defn game
+(defn view
   "The game rendering function"
   []
   [:div
