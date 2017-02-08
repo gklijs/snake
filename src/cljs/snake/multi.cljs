@@ -67,7 +67,7 @@
         :on-change #(reset! value (-> % .-target .-value))
         :on-key-down
         #(when (= (.-keyCode %) 13)
-           (send-transit-game! @value)
+           (send-transit-game! {:user @value})
            (reset! value nil))}])))
 
 (defn update-messages!
@@ -105,5 +105,5 @@
     [game-input]]]]])
 
 (defn initsockets []
- (make-chat-websocket! (str "ws://" (.-host js/location) "/chat") update-messages!)
+  (make-chat-websocket! (str "ws://" (.-host js/location) "/chat") update-messages!)
   (make-game-websocket! (str "ws://" (.-host js/location) "/game") update-messages!))
