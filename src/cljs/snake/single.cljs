@@ -1,5 +1,5 @@
 (ns snake.single
-    (:require [re-frame.core :refer [subscribe dispatch]]))
+  (:require [re-frame.core :refer [subscribe dispatch]]))
 
 ;; -- View Components ---------------------------------------------------------
 
@@ -39,15 +39,15 @@
     (fn
       []
       [:button.btn.btn-secondary {:type "button" :on-click #(dispatch [:switch-game-running])}
-      (str (if @game-running? "Pause" "Start"))
-      ])))
+       (str (if @game-running? "Pause" "Start"))
+       ])))
 
 (defn view
   "The game rendering function"
   []
   [:div
    [:div.container.controls [:div.row.flex-items-xs-center
-       [:div.col-xs [score]]
-       [:div.col-xs [start-stop]]
-    ]]
+                             [:div.col-xs [score]]
+                             [:div.col-xs [start-stop]]
+                             ]]
    [render-board]])

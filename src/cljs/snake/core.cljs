@@ -1,19 +1,19 @@
 (ns snake.core
-    (:require-macros [reagent.ratom :refer [reaction]])
-    (:require [snake.snakepure :as snakepure]
-              [snake.presentation :as presentation]
-              [snake.single :as single]
-              [snake.multi :as multi]
-              [reagent.core :as reagent :refer [atom]]
-              [re-frame.core :refer [reg-event-db path reg-sub subscribe dispatch dispatch-sync]]
-              [goog.events :as events]))
+  (:require-macros [reagent.ratom :refer [reaction]])
+  (:require [snake.snakepure :as snakepure]
+            [snake.presentation :as presentation]
+            [snake.single :as single]
+            [snake.multi :as multi]
+            [reagent.core :as reagent :refer [atom]]
+            [re-frame.core :refer [reg-event-db path reg-sub subscribe dispatch dispatch-sync]]
+            [goog.events :as events]))
 
 ;; -- Js functions ---------------------------------------------------------
 
 (defn logjs
-    "This function prints an argument to the js console"
-    [argument]
-    (.log js/console (clj->js argument)))
+  "This function prints an argument to the js console"
+  [argument]
+  (.log js/console (clj->js argument)))
 
 (def key-code->move
   "Mapping from the integer key code to the direction vector corresponding to that key"
@@ -37,7 +37,7 @@
 (def initial-board [50 40])
 
 (def initial-sweets {:max-number 20
-             :locations []})
+                     :locations  []})
 
 (def initial-snake (snakepure/rand-snake initial-board))
 
@@ -64,47 +64,45 @@
   :change-direction
   (fn [{:keys [snake direction-changed sel-menu-item sel-menu-item slide] :as db} [_ new-direction]]
     (cond
-        (= sel-menu-item "single")
-            (if (not direction-changed)
-              (if (not= (map #(* % -1) (:direction snake)) new-direction)
-                (-> db
-                    (assoc-in [:snake :direction] new-direction)
-                    (assoc :direction-changed true))
-                db)
-              (assoc db :stored-direction new-direction))
-        (= sel-menu-item "presentation")
-             (cond
-             (= [1 0] new-direction) (-> db
-                     (assoc :slide (inc slide)))
-             (= [-1 0] new-direction) (-> db
-                      (assoc :slide (dec slide)))
-              :default db)
-        :default db
-    )
-  ))
+      (= sel-menu-item "single")
+      (if (not direction-changed)
+        (if (not= (map #(* % -1) (:direction snake)) new-direction)
+          (-> db
+              (assoc-in [:snake :direction] new-direction)
+              (assoc :direction-changed true))
+          db)
+        (assoc db :stored-direction new-direction))
+      (= sel-menu-item "presentation")
+      (cond
+        (= [1 0] new-direction) (-> db (assoc :slide (inc slide)))
+        (= [-1 0] new-direction) (-> db (assoc :slide (dec slide)))
+        :default db)
+      :default db
+      )
+    ))
 
 (reg-event-db
   :next-state
   (fn
     [{:keys [snake board sel-menu-item slide] :as db} _]
     (cond
-        (= sel-menu-item "single")
-            (snakepure/next-state db)
-        :default db
+      (= sel-menu-item "single")
+      (snakepure/next-state db)
+      :default db
       )))
 
 (reg-event-db
   :switch-game-running
   (fn
     [{:keys [game-running? snake board] :as db} _]
-        (if (snakepure/collisions snake)
-            (-> db
-            (assoc :snake (snakepure/rand-snake board))
-            (assoc-in [:sweets :locations] [])
-            (assoc :points 0)
-            (assoc :game-running? true))
-        (assoc-in db [:game-running?] (not (:game-running? db)))
-        )))
+    (if (snakepure/collisions snake)
+      (-> db
+          (assoc :snake (snakepure/rand-snake board))
+          (assoc-in [:sweets :locations] [])
+          (assoc :points 0)
+          (assoc :game-running? true))
+      (assoc-in db [:game-running?] (not (:game-running? db)))
+      )))
 
 (reg-event-db
   :sel-menu-item
@@ -202,9 +200,9 @@
     (fn
       []
       (cond
-        (= @sel-menu-item value) [:button.btn.btn-outline-success{:type "button" :on-click #(dispatch [:sel-menu-item value])}value]
-        :else [:button.btn.btn-outline-secondary {:type "button" :on-click #(dispatch [:sel-menu-item value])}value]
-      ))))
+        (= @sel-menu-item value) [:button.btn.btn-outline-success {:type "button" :on-click #(dispatch [:sel-menu-item value])} value]
+        :else [:button.btn.btn-outline-secondary {:type "button" :on-click #(dispatch [:sel-menu-item value])} value]
+        ))))
 
 (defn content-switcher
   "Selects which content to show in the app"
@@ -222,24 +220,24 @@
 (defn menu
   "The menu rendering function"
   []
-   [:div
+  [:div
    [:nav.navbar.navbar-dark.bg-inverse
-       [:h1.navbar-brand.mb-0 (str "Snake")]
-       [:form.form-inline.float-xs-left
-       [(switch-button "home")]
-       [(switch-button "single")]
-       [(switch-button "multi")]
-       [(switch-button "highscores")]
-       [(switch-button "presentation")]
-    ]]])
+    [:h1.navbar-brand.mb-0 (str "Snake")]
+    [:form.form-inline.float-xs-left
+     [(switch-button "home")]
+     [(switch-button "single")]
+     [(switch-button "multi")]
+     [(switch-button "highscores")]
+     [(switch-button "presentation")]
+     ]]])
 
 ;; -- Entry Point -------------------------------------------------------------
 
 (defn mount-components
   "For the figwheel"
   []
-  (reagent/render [content-switcher](js/document.getElementById "app"))
-  (reagent/render [menu](js/document.getElementById "navbar"))
+  (reagent/render [content-switcher] (js/document.getElementById "app"))
+  (reagent/render [menu] (js/document.getElementById "navbar"))
   )
 
 (defn init!

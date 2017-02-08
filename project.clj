@@ -39,82 +39,82 @@
   :plugins [[lein-cprop "1.0.1"]
             [lein-cljsbuild "1.1.4"]]
   :clean-targets ^{:protect false}
-  [:target-path [:cljsbuild :builds :app :compiler :output-dir] [:cljsbuild :builds :app :compiler :output-to]]
+[:target-path [:cljsbuild :builds :app :compiler :output-dir] [:cljsbuild :builds :app :compiler :output-to]]
   :figwheel
   {:http-server-root "public"
-   :nrepl-port 7002
-   :css-dirs ["resources/public/css"]
+   :nrepl-port       7002
+   :css-dirs         ["resources/public/css"]
    :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-  
+
 
   :profiles
-  {:uberjar {:omit-source true
-             :prep-tasks ["compile" ["cljsbuild" "once" "min"]]
-             :cljsbuild
-             {:builds
-              {:min
-               {:source-paths ["src/cljc" "src/cljs" "env/prod/cljs"]
-                :compiler
-                {:output-to "target/cljsbuild/public/js/app.js"
-                 :externs ["react/externs/react.js"]
-                 :optimizations :advanced
-                 :pretty-print false
-                 :closure-warnings
-                 {:externs-validation :off :non-standard-jsdoc :off}}}}}
-             
-             
-             :aot :all
-             :uberjar-name "snake.jar"
-             :source-paths ["env/prod/clj"]
-             :resource-paths ["env/prod/resources"]}
+  {:uberjar       {:omit-source    true
+                   :prep-tasks     ["compile" ["cljsbuild" "once" "min"]]
+                   :cljsbuild
+                                   {:builds
+                                    {:min
+                                     {:source-paths ["src/cljc" "src/cljs" "env/prod/cljs"]
+                                      :compiler
+                                                    {:output-to     "target/cljsbuild/public/js/app.js"
+                                                     :externs       ["react/externs/react.js"]
+                                                     :optimizations :advanced
+                                                     :pretty-print  false
+                                                     :closure-warnings
+                                                                    {:externs-validation :off :non-standard-jsdoc :off}}}}}
+
+
+                   :aot            :all
+                   :uberjar-name   "snake.jar"
+                   :source-paths   ["env/prod/clj"]
+                   :resource-paths ["env/prod/resources"]}
 
    :dev           [:project/dev :profiles/dev]
    :test          [:project/dev :project/test :profiles/test]
 
-   :project/dev  {:dependencies [[prone "1.1.2"]
-                                 [ring/ring-mock "0.3.0"]
-                                 [ring/ring-devel "1.5.0"]
-                                 [pjstadig/humane-test-output "0.8.1"]
-                                 [binaryage/devtools "0.8.2"]
-                                 [com.cemerick/piggieback "0.2.2-SNAPSHOT"]
-                                 [doo "0.1.7"]
-                                 [figwheel-sidecar "0.5.8"]]
-                  :plugins      [[com.jakemccrary/lein-test-refresh "0.14.0"]
-                                 [lein-doo "0.1.7"]
-                                 [lein-figwheel "0.5.8"]
-                                 [org.clojure/clojurescript "1.9.293"]]
-                  :cljsbuild
-                  {:builds
-                   {:app
-                    {:source-paths ["src/cljs" "src/cljc" "env/dev/cljs"]
-                     :compiler
-                     {:main "snake.app"
-                      :asset-path "/js/out"
-                      :output-to "target/cljsbuild/public/js/app.js"
-                      :output-dir "target/cljsbuild/public/js/out"
-                      :source-map true
-                      :optimizations :none
-                      :pretty-print true}}}}
-                  
-                  
-                  
-                  :doo {:build "test"}
-                  :source-paths ["env/dev/clj" "test/clj"]
-                  :resource-paths ["env/dev/resources"]
-                  :repl-options {:init-ns user}
-                  :injections [(require 'pjstadig.humane-test-output)
-                               (pjstadig.humane-test-output/activate!)]}
-   :project/test {:resource-paths ["env/test/resources"]
-                  :cljsbuild
-                  {:builds
-                   {:test
-                    {:source-paths ["src/cljc" "src/cljs" "test/cljs"]
-                     :compiler
-                     {:output-to "target/test.js"
-                      :main "snake.doo-runner"
-                      :optimizations :whitespace
-                      :pretty-print true}}}}
-                  
-                  }
-   :profiles/dev {}
+   :project/dev   {:dependencies   [[prone "1.1.2"]
+                                    [ring/ring-mock "0.3.0"]
+                                    [ring/ring-devel "1.5.0"]
+                                    [pjstadig/humane-test-output "0.8.1"]
+                                    [binaryage/devtools "0.8.2"]
+                                    [com.cemerick/piggieback "0.2.2-SNAPSHOT"]
+                                    [doo "0.1.7"]
+                                    [figwheel-sidecar "0.5.8"]]
+                   :plugins        [[com.jakemccrary/lein-test-refresh "0.14.0"]
+                                    [lein-doo "0.1.7"]
+                                    [lein-figwheel "0.5.8"]
+                                    [org.clojure/clojurescript "1.9.293"]]
+                   :cljsbuild
+                                   {:builds
+                                    {:app
+                                     {:source-paths ["src/cljs" "src/cljc" "env/dev/cljs"]
+                                      :compiler
+                                                    {:main          "snake.app"
+                                                     :asset-path    "/js/out"
+                                                     :output-to     "target/cljsbuild/public/js/app.js"
+                                                     :output-dir    "target/cljsbuild/public/js/out"
+                                                     :source-map    true
+                                                     :optimizations :none
+                                                     :pretty-print  true}}}}
+
+
+
+                   :doo            {:build "test"}
+                   :source-paths   ["env/dev/clj" "test/clj"]
+                   :resource-paths ["env/dev/resources"]
+                   :repl-options   {:init-ns user}
+                   :injections     [(require 'pjstadig.humane-test-output)
+                                    (pjstadig.humane-test-output/activate!)]}
+   :project/test  {:resource-paths ["env/test/resources"]
+                   :cljsbuild
+                                   {:builds
+                                    {:test
+                                     {:source-paths ["src/cljc" "src/cljs" "test/cljs"]
+                                      :compiler
+                                                    {:output-to     "target/test.js"
+                                                     :main          "snake.doo-runner"
+                                                     :optimizations :whitespace
+                                                     :pretty-print  true}}}}
+
+                   }
+   :profiles/dev  {}
    :profiles/test {}})

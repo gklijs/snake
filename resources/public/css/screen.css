@@ -1,35 +1,42 @@
 html,
 body {
-	font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     height: 100%;
 }
+
 .navbar {
-  margin-bottom: 10px;
-  border-radius: 0px;
+    margin-bottom: 10px;
+    border-radius: 0px;
 }
+
 .navbar-brand {
-  float: none;
+    float: none;
 }
+
 .navbar-nav .nav-item {
-  float: none;
+    float: none;
 }
+
 .navbar-divider,
-.navbar-nav .nav-item+.nav-item,
+.navbar-nav .nav-item + .nav-item,
 .navbar-nav .nav-link + .nav-link {
-  margin-left: 0;
+    margin-left: 0;
 }
+
 @media (min-width: 34em) {
-  .navbar-brand {
-    float: left;
-  }
-  .navbar-nav .nav-item {
-    float: left;
-  }
-  .navbar-divider,
-  .navbar-nav .nav-item+.nav-item,
-  .navbar-nav .nav-link + .nav-link {
-    margin-left: 1rem;
-  }
+    .navbar-brand {
+        float: left;
+    }
+
+    .navbar-nav .nav-item {
+        float: left;
+    }
+
+    .navbar-divider,
+    .navbar-nav .nav-item + .nav-item,
+    .navbar-nav .nav-link + .nav-link {
+        margin-left: 1rem;
+    }
 }
 
 @-moz-keyframes three-quarters-loader {
@@ -42,6 +49,7 @@ body {
         transform: rotate(360deg);
     }
 }
+
 @-webkit-keyframes three-quarters-loader {
     0% {
         -webkit-transform: rotate(0deg);
@@ -52,6 +60,7 @@ body {
         transform: rotate(360deg);
     }
 }
+
 @keyframes three-quarters-loader {
     0% {
         -moz-transform: rotate(0deg);

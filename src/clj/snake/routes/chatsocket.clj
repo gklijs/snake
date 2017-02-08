@@ -1,8 +1,8 @@
 (ns snake.routes.chatsocket
- (:require [compojure.core :refer [GET defroutes]]
-           [org.httpkit.server
-            :refer [send! with-channel on-close on-receive]]
-           [cognitect.transit :as t]))
+  (:require [compojure.core :refer [GET defroutes]]
+            [org.httpkit.server
+             :refer [send! with-channel on-close on-receive]]
+            [cognitect.transit :as t]))
 
 (defonce channels (atom #{}))
 

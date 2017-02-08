@@ -3,9 +3,9 @@
 
 (def defaults
   {:init
-   (fn []
-     (log/info "\n-=[snake started successfully]=-"))
+               (fn []
+                 (log/info "\n-=[snake started successfully]=-"))
    :stop
-   (fn []
-     (log/info "\n-=[snake has shut down successfully]=-"))
+               (fn []
+                 (log/info "\n-=[snake has shut down successfully]=-"))
    :middleware identity})

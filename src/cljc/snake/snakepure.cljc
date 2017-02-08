@@ -14,12 +14,12 @@
   "This function takes the snake, locations of the sweets and the board-size as arguments, and
   returns a random position not colliding with the snake body or sweets"
   [snake locations [x y]]
-  (let [positions-set (concat  (into #{} (:body snake)) locations)
+  (let [positions-set (concat (into #{} (:body snake)) locations)
         board-positions (for [x-pos (range x)
                               y-pos (range y)]
                           [x-pos y-pos])
         free-position? (atom (rand-nth board-positions))]
-    (while (some #(= @free-position? %) positions-set)(reset! free-position? (rand-nth board-positions)))
+    (while (some #(= @free-position? %) positions-set) (reset! free-position? (rand-nth board-positions)))
     @free-position?))
 
 (defn grow-snake
@@ -32,9 +32,9 @@
 (defn rand-snake
   "this function creates a new random snake, based only on the board"
   [[x y]]
-  (let [valid-directons [[0 1][0 -1][-1 0][1 0]]
+  (let [valid-directons [[0 1] [0 -1] [-1 0] [1 0]]
         snake (atom {})
-        start-position [[(rand-int x)(rand-int y)]]]
+        start-position [[(rand-int x) (rand-int y)]]]
     (reset! snake (assoc @snake :direction (rand-nth valid-directons)))
     (reset! snake (assoc @snake :body (conj start-position (valid-head (mapv + (:direction @snake) start-position) [x y]))))
     (dotimes [n 4] (swap! snake grow-snake))
@@ -44,7 +44,7 @@
 (defn move-snake
   "Move the whole snake positions and directions of all snake elements"
   [{:keys [direction body] :as snake} board]
-  (let [head-new-position (valid-head (mapv + direction (first body)) board) ]
+  (let [head-new-position (valid-head (mapv + direction (first body)) board)]
     (update-in snake [:body] #(into [] (drop-last (cons head-new-position body))))))
 
 (defn collisions
@@ -63,7 +63,7 @@
   "Handles movement stuff"
   [{:keys [snake sweets] :as db-before}]
   (let [db (assoc db-before :direction-changed false)
-        sweet (some #{(first (:body snake))}  (:locations sweets))]
+        sweet (some #{(first (:body snake))} (:locations sweets))]
     (if sweet
       (-> db
           (update :snake grow-snake)
@@ -76,7 +76,7 @@
   [{:keys [max-number locations] :as sweets} snake board]
   (if (> max-number (count locations))
     (update-in sweets [:locations] #(conj locations (rand-free-position snake locations board)))
-    (update-in sweets [:locations] #(remove #{(last locations)}  locations))))
+    (update-in sweets [:locations] #(remove #{(last locations)} locations))))
 
 (defn pop-stored-direction
   [{:keys [stored-direction direction-changed] :as db}]
