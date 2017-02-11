@@ -6,13 +6,14 @@
 (defn render-board
   "Renders the board area of the game"
   []
-  (let [board (subscribe [:board])
-        snake (subscribe [:snake])
-        sweets (subscribe [:sweets])]
+  (let [local-game-state (subscribe [:local-game-state])]
     (fn []
-      (let [[width height] @board
-            snake-positions (into #{} (:body @snake))
-            sweet-positions (into #{} (:locations @sweets))
+      (let [board (:board @local-game-state)
+            snake (:snake @local-game-state)
+            sweets (:sweets @local-game-state)
+            [width height] board
+            snake-positions (into #{} (:body snake))
+            sweet-positions (into #{} (:locations sweets))
             cells (for [y (range height)]
                     (into [:div.row.flex-items-xs-center]
                           (for [x (range width)
@@ -27,19 +28,19 @@
 (defn score
   "Renders the player's score"
   []
-  (let [points (subscribe [:points])]
+  (let [local-game-state (subscribe [:local-game-state])]
     (fn
       []
-      [:div.score (str "Score: " @points)])))
+      [:div.score (str "Score: " (:points @local-game-state))])))
 
 (defn start-stop
   "Renders the button to start/pause the game"
   []
-  (let [game-running? (subscribe [:game-running?])]
+  (let [local-game-state (subscribe [:local-game-state])]
     (fn
       []
       [:button.btn.btn-secondary {:type "button" :on-click #(dispatch [:switch-game-running])}
-       (str (if @game-running? "Pause" "Start"))
+       (str (if (:game-running? @local-game-state) "Pause" "Start"))
        ])))
 
 (defn view

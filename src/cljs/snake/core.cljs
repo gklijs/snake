@@ -34,23 +34,10 @@
 
 ;; -- Create initial values ---------------------------------------------------------
 
-(def initial-board [50 40])
-
-(def initial-sweets {:max-number 20
-                     :locations  []})
-
-(def initial-snake (snakepure/rand-snake initial-board))
-
-(def initial-state {:board             initial-board
-                    :snake             initial-snake
-                    :sweets            initial-sweets
-                    :points            0
-                    :game-running?     false
-                    :direction-changed false
-                    :stored-direction  false
-                    :sel-menu-item     "home"
-                    :slide             -1
-                    :messages          []})
+(def initial-state {:local-game-state (snakepure/initial-state 1)
+                    :sel-menu-item    "home"
+                    :slide            -1
+                    :messages         []})
 
 ;; -- Event Handlers ----------------------------------------------------------
 
@@ -62,20 +49,22 @@
 
 (reg-event-db
   :change-direction
-  (fn [{:keys [snake direction-changed sel-menu-item sel-menu-item slide] :as db} [_ new-direction]]
+  (fn [{:keys [local-game-state sel-menu-item slide] :as db} [_ new-direction]]
     (cond
       (= sel-menu-item "single")
-      (if (not direction-changed)
-        (if (not= (map #(* % -1) (:direction snake)) new-direction)
-          (-> db
-              (assoc-in [:snake :direction] new-direction)
-              (assoc :direction-changed true))
-          db)
-        (assoc db :stored-direction new-direction))
+      (let [direction-changed (:direction-changed local-game-state)
+            snake (:snake local-game-state)]
+        (if (not direction-changed)
+          (if (not= (map #(* % -1) (:direction snake)) new-direction)
+            (-> db
+                (assoc-in [:local-game-state :stored-direction] new-direction)
+                (assoc-in [:local-game-state :direction-changed] true))
+            db)
+          (assoc-in db [:local-game-state :stored-direction] new-direction)))
       (= sel-menu-item "presentation")
       (cond
-        (= [1 0] new-direction) (-> db (assoc :slide (inc slide)))
-        (= [-1 0] new-direction) (-> db (assoc :slide (dec slide)))
+        (= [1 0] new-direction) (update db :slide inc)
+        (= [-1 0] new-direction) (update db :slide dec)
         :default db)
       :default db
       )
@@ -84,24 +73,23 @@
 (reg-event-db
   :next-state
   (fn
-    [{:keys [snake board sel-menu-item slide] :as db} _]
+    [{:keys [local-game-state sel-menu-item] :as db} _]
     (cond
-      (= sel-menu-item "single")
-      (snakepure/next-state db)
-      :default db
-      )))
+      (= sel-menu-item "single") (assoc-in db [:local-game-state] (snakepure/next-state local-game-state))
+      :else db)))
 
 (reg-event-db
   :switch-game-running
   (fn
-    [{:keys [game-running? snake board] :as db} _]
-    (if (snakepure/collisions snake)
+    [{:keys [local-game-state] :as db} _]
+    (logjs db)
+    (if (snakepure/collisions (:snake local-game-state))
       (-> db
-          (assoc :snake (snakepure/rand-snake board))
-          (assoc-in [:sweets :locations] [])
-          (assoc :points 0)
-          (assoc :game-running? true))
-      (assoc-in db [:game-running?] (not (:game-running? db)))
+          (assoc-in [:local-game-state :snake] (snakepure/rand-snake (:board local-game-state)))
+          (assoc-in [:local-game-state :sweets :locations] [])
+          (assoc-in [:local-game-state :points] 0)
+          (assoc-in [:local-game-state :game-running?] true))
+      (do (logjs db) (assoc-in db [:local-game-state :game-running?] (not (:game-running? local-game-state))))
       )))
 
 (reg-event-db
@@ -128,50 +116,10 @@
 ;; -- Subscription Handlers ---------------------------------------------------
 
 (reg-sub
-  :board
+  :local-game-state
   (fn
     [db _]
-    (:board db)))
-
-
-(reg-sub
-  :snake
-  (fn
-    [db _]
-    (:snake db)))
-
-
-(reg-sub
-  :sweets
-  (fn
-    [db _]
-    (:sweets db)))
-
-(reg-sub
-  :points
-  (fn
-    [db _]
-    (:points db)))
-
-
-(reg-sub
-  :game-running?
-  (fn
-    [db _]
-    (:game-running? db)))
-
-
-(reg-sub
-  :direction-changed
-  (fn
-    [db _]
-    (:direction-changed db)))
-
-(reg-sub
-  :stored-direction
-  (fn
-    [db _]
-    (:stored-direction db)))
+    (:local-game-state db)))
 
 (reg-sub
   :sel-menu-item

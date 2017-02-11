@@ -6,7 +6,7 @@
    {
     :title  "A little about me"
     :first  "Been developing some years with Hippo doing back-end stuff. One year of working without Hippo, building a Kafka centered environment at Rabobank to share business events. Recently grew an interest in Clojure and Clojurescript."
-    :second "Originally from Roosendaal, lived in Leiden and Utrecht, and moving to Papendrecht next month, to live with Matha her kids, and her cats."
+    :second "Originally from Roosendaal, lived in Leiden and Utrecht, and moving to Papendrecht next month, to live with Martha her kids, and her cats."
     :third  "Now working at UvA/HvA, getting to hippo 10."
     }
    {
