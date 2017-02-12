@@ -36,8 +36,14 @@
         start-position [[(+ 5 (rand-int (- x 10))) (+ 5 (rand-int (- y 10)))]]
         direction (rand-nth valid-directons)]
     {
-     :direction direction
-     :body      (conj start-position (mapv + (last (:first start-position)) direction))
+     :direction          direction
+     :body               (conj start-position
+                               (mapv - (first start-position) direction)
+                               (mapv - (first start-position) direction direction)
+                               (mapv - (first start-position) direction direction direction))
+     :direction-changed? false
+     :stored-direction   nil
+     :points             0
      }))
 
 (defn move-snake
@@ -77,13 +83,13 @@
     (update-in sweets [:locations] #(remove #{(last locations)} locations))))
 
 (defn pop-stored-direction
-  [{:keys [stored-direction direction-changed] :as game-state}]
-  (if (true? direction-changed)
-    (-> game-state
-        (assoc-in [:snake :direction] stored-direction)
-        (assoc :stored-direction false)
-        (assoc :direction-changed false))
-    game-state))
+  [{:keys [stored-direction direction-changed?] :as snake}]
+  (if (true? direction-changed?)
+    (-> snake
+        (assoc :direction stored-direction)
+        (assoc :stored-direction nil)
+        (assoc :direction-changed? false))
+    snake))
 
 (defn next-state
   "Gives the next state of the game-state"
@@ -92,7 +98,7 @@
     (if (collisions snake)
       (assoc-in game-state [:game-running?] false)
       (-> game-state
-          (pop-stored-direction)
+          (update :snake pop-stored-direction)
           (update :snake move-snake board)
           (feed-snakes)
           (update :sweets handle-sweets snake board)))
@@ -104,32 +110,28 @@
   (if (collisions snake)
     (-> game-state
         (assoc-in [:snake] (rand-snake board))
-        (assoc-in [:sweets :locations] [])
         (assoc-in [:points] 0)
         (assoc-in [:game-running?] true))
     (assoc-in game-state [:game-running?] (not game-running?))))
 
 (defn change-direction
   "Changes direction of the snake, will only be effective after a call to next-state"
-  [{:keys [snake game-running? board direction-changed] :as game-state} new-direction]
-  (if (not direction-changed)
-    (if (not= (map #(* % -1) (:direction snake)) new-direction)
-      (-> game-state
+  [{:keys [direction direction-changed?] :as snake} new-direction]
+  (if direction-changed?
+    nil
+    (if (not= (map #(* % -1) direction) new-direction)
+      (-> snake
           (assoc-in [:stored-direction] new-direction)
-          (assoc-in [:direction-changed] true))
-      game-state)))
+          (assoc-in [:direction-changed?] true)))))
 
 (defn initial-state
   "Gives the initial game state"
   [number-of-snakes]
   (let [board [50 40]]
     {
-     :board             board
-     :snake             (rand-snake board)
-     :sweets            {:max-number 20
-                         :locations  []}
-     :game-running?     false
-     :direction-changed false
-     :stored-direction  false
-     :points            0
+     :board         board
+     :snake         (rand-snake board)
+     :sweets        {:max-number 20
+                     :locations  []}
+     :game-running? false
      }))
