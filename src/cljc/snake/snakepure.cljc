@@ -37,7 +37,7 @@
         direction (rand-nth valid-directons)]
     {
      :direction direction
-     :body (conj start-position (mapv + (last (:first start-position)) direction))
+     :body      (conj start-position (mapv + (last (:first start-position)) direction))
      }))
 
 (defn move-snake
@@ -79,14 +79,14 @@
 (defn pop-stored-direction
   [{:keys [stored-direction direction-changed] :as game-state}]
   (if (true? direction-changed)
-      (-> game-state
-          (assoc-in [:snake :direction] stored-direction)
-          (assoc :stored-direction false)
-          (assoc :direction-changed false))
+    (-> game-state
+        (assoc-in [:snake :direction] stored-direction)
+        (assoc :stored-direction false)
+        (assoc :direction-changed false))
     game-state))
 
 (defn next-state
-  "gives the next state of the game-state"
+  "Gives the next state of the game-state"
   [{:keys [snake game-running? board sweets] :as game-state}]
   (if (true? game-running?)
     (if (collisions snake)
@@ -97,6 +97,27 @@
           (feed-snakes)
           (update :sweets handle-sweets snake board)))
     game-state))
+
+(defn switch-game-running
+  "Pause or un-pause to game"
+  [{:keys [snake game-running? board] :as game-state}]
+  (if (collisions snake)
+    (-> game-state
+        (assoc-in [:snake] (rand-snake board))
+        (assoc-in [:sweets :locations] [])
+        (assoc-in [:points] 0)
+        (assoc-in [:game-running?] true))
+    (assoc-in game-state [:game-running?] (not game-running?))))
+
+(defn change-direction
+  "Changes direction of the snake, will only be effective after a call to next-state"
+  [{:keys [snake game-running? board direction-changed] :as game-state} new-direction]
+  (if (not direction-changed)
+    (if (not= (map #(* % -1) (:direction snake)) new-direction)
+      (-> game-state
+          (assoc-in [:stored-direction] new-direction)
+          (assoc-in [:direction-changed] true))
+      game-state)))
 
 (defn initial-state
   "Gives the initial game state"

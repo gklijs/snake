@@ -58,17 +58,26 @@
                         (reset! value nil))}])))
 
 (defn game-input []
-  (let [value (atom nil)]
+  (let [username (atom nil) password (atom nil)]
     (fn []
-      [:input.form-control
-       {:type        :text
-        :placeholder "type in something and press enter"
-        :value       @value
-        :on-change   #(reset! value (-> % .-target .-value))
-        :on-key-down
-                     #(when (= (.-keyCode %) 13)
-                        (send-transit-game! {:user @value})
-                        (reset! value nil))}])))
+      [:div.col-sm-6
+       [:input.form-control
+        {:type        :text
+         :placeholder "type in username and press enter"
+         :value       @username
+         :on-change   #(reset! username (-> % .-target .-value))}]
+       [:input.form-control
+        {:type        :password
+         :placeholder "type in password and press enter"
+         :value       @password
+         :on-change   #(reset! password (-> % .-target .-value))
+         :on-key-down
+                      #(when (= (.-keyCode %) 13)
+                         (send-transit-game! {:username @username :password @password})
+                         (reset! username nil)
+                         (reset! password nil)
+                         )}]]
+      )))
 
 (defn update-messages!
   "updates the messages"
@@ -101,8 +110,7 @@
      [:div.col-sm-6
       [message-input]]]
     [:div.row
-     [:div.col-sm-6
-      [game-input]]]]])
+     [game-input]]]])
 
 (defn initsockets []
   (make-chat-websocket! (str "ws://" (.-host js/location) "/chat") update-messages!)

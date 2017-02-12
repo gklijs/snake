@@ -34,10 +34,12 @@
 
 ;; -- Create initial values ---------------------------------------------------------
 
-(def initial-state {:local-game-state (snakepure/initial-state 1)
-                    :sel-menu-item    "home"
-                    :slide            -1
-                    :messages         []})
+(def initial-state {:local-game-state  nil
+                    :sel-menu-item     "home"
+                    :slide             -1
+                    :messages          []
+                    :game-info         {}
+                    :remote-game-state nil})
 
 ;; -- Event Handlers ----------------------------------------------------------
 
@@ -52,15 +54,10 @@
   (fn [{:keys [local-game-state sel-menu-item slide] :as db} [_ new-direction]]
     (cond
       (= sel-menu-item "single")
-      (let [direction-changed (:direction-changed local-game-state)
-            snake (:snake local-game-state)]
-        (if (not direction-changed)
-          (if (not= (map #(* % -1) (:direction snake)) new-direction)
-            (-> db
-                (assoc-in [:local-game-state :stored-direction] new-direction)
-                (assoc-in [:local-game-state :direction-changed] true))
-            db)
-          (assoc-in db [:local-game-state :stored-direction] new-direction)))
+      (let [new-state (snakepure/change-direction local-game-state new-direction)]
+        (if new-state
+          (assoc-in db [:local-game-state] new-state)
+          db))
       (= sel-menu-item "presentation")
       (cond
         (= [1 0] new-direction) (update db :slide inc)
@@ -75,22 +72,18 @@
   (fn
     [{:keys [local-game-state sel-menu-item] :as db} _]
     (cond
-      (= sel-menu-item "single") (assoc-in db [:local-game-state] (snakepure/next-state local-game-state))
+      (= sel-menu-item "single")
+      (if local-game-state
+        (assoc-in db [:local-game-state] (snakepure/next-state local-game-state))
+        (assoc-in db [:local-game-state] (snakepure/initial-state 1))
+        )
       :else db)))
 
 (reg-event-db
   :switch-game-running
   (fn
     [{:keys [local-game-state] :as db} _]
-    (logjs db)
-    (if (snakepure/collisions (:snake local-game-state))
-      (-> db
-          (assoc-in [:local-game-state :snake] (snakepure/rand-snake (:board local-game-state)))
-          (assoc-in [:local-game-state :sweets :locations] [])
-          (assoc-in [:local-game-state :points] 0)
-          (assoc-in [:local-game-state :game-running?] true))
-      (do (logjs db) (assoc-in db [:local-game-state :game-running?] (not (:game-running? local-game-state))))
-      )))
+    (assoc-in db [:local-game-state] (snakepure/switch-game-running local-game-state))))
 
 (reg-event-db
   :sel-menu-item
@@ -148,7 +141,7 @@
     (fn
       []
       (cond
-        (= @sel-menu-item value) [:button.btn.btn-outline-success {:type "button" :on-click #(dispatch [:sel-menu-item value])} value]
+        (= @sel-menu-item value) [:button.btn.btn-outline-success {:type "button"} value]
         :else [:button.btn.btn-outline-secondary {:type "button" :on-click #(dispatch [:sel-menu-item value])} value]
         ))))
 
@@ -184,8 +177,8 @@
 (defn mount-components
   "For the figwheel"
   []
-  (reagent/render [content-switcher] (js/document.getElementById "app"))
   (reagent/render [menu] (js/document.getElementById "navbar"))
+  (reagent/render [content-switcher] (js/document.getElementById "app"))
   )
 
 (defn init!

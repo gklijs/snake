@@ -21,7 +21,7 @@
                  [org.webjars/bootstrap "4.0.0-alpha.5"]
                  [org.webjars/font-awesome "4.6.3"]
                  [reagent "0.6.0"]
-                 [re-frame "0.8.0"]
+                 [re-frame "0.9.2"]
                  [com.cognitect/transit-cljs "0.8.239"]
                  [ring-middleware-format "0.7.0"]
                  [ring-webjars "0.1.1"]
