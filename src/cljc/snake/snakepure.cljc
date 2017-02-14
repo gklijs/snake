@@ -69,8 +69,9 @@
             (when (some #(= head %) (rest (get sub-snake :body)))
               (swap! new-snakes #(dissoc % main-key)))
             (when (some #(= head %) (get sub-snake :body))
+              (swap! new-snakes #(update-in % [sub-key :points] add-points-for-killing))
               (swap! new-snakes #(dissoc % main-key))
-              (swap! new-snakes #(update-in % [sub-key :points] add-points-for-killing)))))
+              )))
         ))
     @new-snakes))
 
@@ -130,6 +131,7 @@
 (defn switch-game-running
   "Pause or un-pause to game"
   [{:keys [snakes game-running? board] :as game-state}]
+  (print game-state)
   (if (empty? (:0 snakes))
     (-> game-state
         (assoc-in [:snakes :0] (rand-snake board))
@@ -159,7 +161,7 @@
     {
      :board         board
      :snakes        @snakes
-     :sweets        {:max-number 40
+     :sweets        {:max-number 20
                      :locations  []}
      :game-running? false
      }))
