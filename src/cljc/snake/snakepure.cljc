@@ -38,9 +38,10 @@
     {
      :direction          direction
      :body               (conj start-position
-                               (mapv - (first start-position) direction)
-                               (mapv - (first start-position) direction direction)
-                               (mapv - (first start-position) direction direction direction))
+                               (mapv - (first start-position) (mapv * [1 1] direction))
+                               (mapv - (first start-position) (mapv * [2 2] direction))
+                               (mapv - (first start-position) (mapv * [3 3] direction))
+                               (mapv - (first start-position) (mapv * [4 4] direction)))
      :direction-changed? false
      :stored-direction   nil
      :points             0
@@ -52,28 +53,48 @@
   (let [head-new-position (valid-head (mapv + direction (first body)) board)]
     (update-in snake [:body] #(into [] (drop-last (cons head-new-position body))))))
 
-(defn collisions
-  "Check whether the snake is hit by himself, causing it to die"
-  [snake]
-  (let [head (first (:body snake))
-        body (rest (:body snake))]
-    (some #(= head %) body)))
+(defn add-points-for-killing
+  "Adds the point for killing another snake"
+  [current-points]
+  (+ current-points 5))
+
+(defn handle-collisions
+  "Removes any snake when the head hits another snake or itself, add 5 points to the snake responsible for killiing"
+  [snakes]
+  (let [new-snakes (atom snakes)]
+    (doseq [[main-key main-snake] snakes]
+      (let [head (first (get main-snake :body))]
+        (doseq [[sub-key sub-snake] snakes]
+          (if (= main-key sub-key)
+            (when (some #(= head %) (rest (get sub-snake :body)))
+              (swap! new-snakes #(dissoc % main-key)))
+            (when (some #(= head %) (get sub-snake :body))
+              (swap! new-snakes #(dissoc % main-key))
+              (swap! new-snakes #(update-in % [sub-key :points] add-points-for-killing)))))
+        ))
+    @new-snakes))
 
 (defn remove-sweet
   "Remove a certain sweet cause it's been eaten"
   [{:keys [locations] :as sweets} sweet]
   (assoc sweets :locations (remove #{sweet} locations)))
 
+(defn feed-sweet
+  "Give a new state after a certain sweet has been eaten by a certain snake"
+  [key sweet game-state]
+  (-> game-state
+      (update-in [:snakes key] grow-snake)
+      (update-in [:snakes key :points] inc)
+      (update :sweets remove-sweet sweet)))
+
 (defn feed-snakes
   "Check if there is some snake head on a sweet, and let it eat it, when it is the case"
-  [{:keys [snake sweets] :as game-state}]
-  (let [sweet (some #{(first (:body snake))} (:locations sweets))]
-    (if sweet
-      (-> game-state
-          (update :snake grow-snake)
-          (update :points inc)
-          (update :sweets remove-sweet sweet))
-      game-state)))
+  [{:keys [snakes sweets] :as game-state}]
+  (let [new-state (atom game-state)]
+    (doseq [[k v] snakes]
+      (let [sweet (some #{(first (get-in v [:body]))} (:locations sweets))]
+        (if sweet (swap! new-state #(feed-sweet k sweet %)))))
+    @new-state))
 
 (defn handle-sweets
   "Adds new sweet if there are less sweets than the max number, removes the oldest one otherwhise"
@@ -93,24 +114,29 @@
 
 (defn next-state
   "Gives the next state of the game-state"
-  [{:keys [snake game-running? board sweets] :as game-state}]
+  [{:keys [snakes game-running? board sweets] :as game-state}]
   (if (true? game-running?)
-    (if (collisions snake)
+    (if (empty? (:0 snakes))
       (assoc-in game-state [:game-running?] false)
-      (-> game-state
-          (update :snake pop-stored-direction)
-          (update :snake move-snake board)
-          (feed-snakes)
-          (update :sweets handle-sweets snake board)))
+      (let [new-snakes (atom snakes)]
+        (doseq [[k v] @new-snakes] (swap! new-snakes #(update % k pop-stored-direction)))
+        (doseq [[k v] @new-snakes] (swap! new-snakes #(assoc % k (move-snake v board))))
+        (-> game-state
+            (assoc :snakes (handle-collisions @new-snakes))
+            (feed-snakes)
+            (update :sweets handle-sweets @new-snakes board))))
     game-state))
 
 (defn switch-game-running
   "Pause or un-pause to game"
-  [{:keys [snake game-running? board] :as game-state}]
-  (if (collisions snake)
+  [{:keys [snakes game-running? board] :as game-state}]
+  (if (empty? (:0 snakes))
     (-> game-state
-        (assoc-in [:snake] (rand-snake board))
-        (assoc-in [:points] 0)
+        (assoc-in [:snakes :0] (rand-snake board))
+        (assoc-in [:snakes :1] (rand-snake board))
+        (assoc-in [:snakes :2] (rand-snake board))
+        (assoc-in [:snakes :3] (rand-snake board))
+        (assoc-in [:snakes :4] (rand-snake board))
         (assoc-in [:game-running?] true))
     (assoc-in game-state [:game-running?] (not game-running?))))
 
@@ -127,11 +153,13 @@
 (defn initial-state
   "Gives the initial game state"
   [number-of-snakes]
-  (let [board [50 40]]
+  (let [board [50 40]
+        snakes (atom {})]
+    (dotimes [n number-of-snakes] (reset! snakes (assoc-in @snakes [(keyword (str n))] (rand-snake board))))
     {
      :board         board
-     :snake         (rand-snake board)
-     :sweets        {:max-number 20
+     :snakes        @snakes
+     :sweets        {:max-number 40
                      :locations  []}
      :game-running? false
      }))

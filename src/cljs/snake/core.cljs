@@ -54,9 +54,9 @@
   (fn [{:keys [local-game-state sel-menu-item slide] :as db} [_ new-direction]]
     (cond
       (= sel-menu-item "single")
-      (let [new-snake (snakepure/change-direction (:snake local-game-state) new-direction)]
+      (let [new-snake (snakepure/change-direction (get-in local-game-state [:snakes :0]) new-direction)]
         (if new-snake
-          (assoc-in db [:local-game-state :snake] new-snake)
+          (assoc-in db [:local-game-state :snakes :0] new-snake)
           db))
       (= sel-menu-item "presentation")
       (cond
@@ -75,7 +75,7 @@
       (= sel-menu-item "single")
       (if local-game-state
         (assoc-in db [:local-game-state] (snakepure/next-state local-game-state))
-        (assoc-in db [:local-game-state] (snakepure/initial-state 1))
+        (assoc-in db [:local-game-state] (snakepure/initial-state 5))
         )
       :else db)))
 

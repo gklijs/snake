@@ -31,8 +31,8 @@
 (defn notify-clients [msg]
   (let [game-input (readjson msg)]
     (cond
-      (seq (:user game-input)) (doseq [channel @channels] (send! channel (writejson (str "user is: " (:user game-input)))))
-      :else (doseq [channel @channels] (send! channel (writejson "kaas"))))))
+      (seq (:username game-input)) (doseq [channel @channels] (send! channel (writejson (str "new player is: " (:username game-input)))))
+      :else (doseq [channel @channels] (send! channel (writejson "error subscribing new player"))))))
 
 (defn ws-handler [request]
   (with-channel request channel
