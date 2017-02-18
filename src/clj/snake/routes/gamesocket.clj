@@ -8,11 +8,10 @@
 (defonce userinfo (atom {}))
 (defonce unique-key-user-key (atom {}))
 (defonce key-counter (atom 0))
-(defonce unique-key (atom (keyword "0")))
 
-(defn set-unique-key
+(defn get-unique-key
   []
-  (reset! unique-key (keyword (str (swap! key-counter inc)))))
+  (keyword (str (swap! key-counter inc))))
 
 (defn readjson [data]
   (let [in (ByteArrayInputStream. (.getBytes data))
@@ -61,10 +60,10 @@
 
 (defn ws-handler [request]
   (with-channel request channel
-                (set-unique-key)
-                (connect! channel @unique-key)
-                (on-close channel (partial disconnect! @unique-key))
-                (on-receive channel #(handle-message % @unique-key))))
+                (let [key (get-unique-key)]
+                  (connect! channel key)
+                  (on-close channel (partial disconnect! key))
+                  (on-receive channel #(handle-message % key)))))
 
 (defroutes gamesocket-routes
            (GET "/game" request (ws-handler request)))
