@@ -3,11 +3,6 @@
 
 ;; -- View Components ---------------------------------------------------------
 
-(defn logjs
-  "This function prints an argument to the js console"
-  [argument]
-  (.log js/console (clj->js argument)))
-
 (defn render-board
   "Renders the board area of the game"
   []

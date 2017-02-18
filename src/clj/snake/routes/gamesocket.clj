@@ -1,11 +1,18 @@
 (ns snake.routes.gamesocket
   (:require [compojure.core :refer [GET defroutes]]
-            [org.httpkit.server
-             :refer [send! with-channel on-close on-receive]]
+            [org.httpkit.server :refer [send! with-channel on-close on-receive]]
             [cognitect.transit :as t])
   (:import (java.io ByteArrayOutputStream ByteArrayInputStream)))
 
-(defonce channels (atom #{}))
+(defonce channels (atom {}))
+(defonce userinfo (atom {}))
+(defonce unique-key-user-key (atom {}))
+(defonce key-counter (atom 0))
+(defonce unique-key (atom (keyword "0")))
+
+(defn set-unique-key
+  []
+  (reset! unique-key (keyword (str (swap! key-counter inc)))))
 
 (defn readjson [data]
   (let [in (ByteArrayInputStream. (.getBytes data))
@@ -22,23 +29,42 @@
     (.reset baos)
     result))
 
-(defn connect! [channel]
-  (swap! channels conj channel))
+(defn connect! [channel unique-key]
+  (swap! channels assoc unique-key channel))
 
-(defn disconnect! [channel status]
-  (swap! channels #(remove #{channel} %)))
+(defn disconnect! [unique-key status]
+  (swap! unique-key-user-key #(dissoc % unique-key))
+  (swap! channels #(dissoc % unique-key)))
 
-(defn notify-clients [msg]
+(defn register-user
+  "registeres the user"
+  [channel unique-key user-key password]
+  (letfn [(register [] (do
+                         (swap! userinfo assoc-in [user-key :password] password)
+                         (swap! unique-key-user-key assoc unique-key (name user-key))
+                         (send! channel (writejson (str "Succesfully registered with unique key: " (name unique-key))))))]
+    (if-let [thisuserinfo (get @userinfo user-key)]
+      (if
+        (= password (get thisuserinfo :password))
+        (register)
+        (send! channel (writejson "Username already exists with other password")))
+      (register))))
+
+(defn handle-message
+  "Does the message handling"
+  [msg unique-key]
   (let [game-input (readjson msg)]
-    (cond
-      (seq (:username game-input)) (doseq [channel @channels] (send! channel (writejson (str "new player is: " (:username game-input)))))
-      :else (doseq [channel @channels] (send! channel (writejson "error subscribing new player"))))))
+    (if-let [channel (get @channels unique-key)]
+      (cond
+        (seq (:username game-input)) (register-user channel unique-key (keyword (clojure.string/lower-case (:username game-input))) (:password game-input))
+        :else (send! channel (writejson "Could not handle data."))))))
 
 (defn ws-handler [request]
   (with-channel request channel
-                (connect! channel)
-                (on-close channel (partial disconnect! channel))
-                (on-receive channel #(notify-clients %))))
+                (set-unique-key)
+                (connect! channel @unique-key)
+                (on-close channel (partial disconnect! @unique-key))
+                (on-receive channel #(handle-message % @unique-key))))
 
 (defroutes gamesocket-routes
            (GET "/game" request (ws-handler request)))

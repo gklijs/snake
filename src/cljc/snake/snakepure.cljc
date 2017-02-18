@@ -131,7 +131,6 @@
 (defn switch-game-running
   "Pause or un-pause to game"
   [{:keys [snakes game-running? board] :as game-state}]
-  (print game-state)
   (if (empty? (:0 snakes))
     (-> game-state
         (assoc-in [:snakes :0] (rand-snake board))
@@ -145,12 +144,12 @@
 (defn change-direction
   "Changes direction of the snake, will only be effective after a call to next-state"
   [{:keys [direction direction-changed?] :as snake} new-direction]
-  (if direction-changed?
-    nil
-    (if (not= (map #(* % -1) direction) new-direction)
-      (-> snake
-          (assoc-in [:stored-direction] new-direction)
-          (assoc-in [:direction-changed?] true)))))
+  (if snake
+    (if (false? direction-changed?)
+      (if (not= (map #(* % -1) direction) new-direction)
+        (-> snake
+            (assoc-in [:stored-direction] new-direction)
+            (assoc-in [:direction-changed?] true))))))
 
 (defn initial-state
   "Gives the initial game state"
