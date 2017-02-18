@@ -49,7 +49,7 @@
     (fn []
       [:input.form-control
        {:type        :text
-        :placeholder "type in a message and press enter"
+        :placeholder "type in a message and press enter to send to everybody"
         :value       @value
         :on-change   #(reset! value (-> % .-target .-value))
         :on-key-down
@@ -57,32 +57,45 @@
                         (send-transit-msg! @value)
                         (reset! value nil))}])))
 
+(defn update-messages!
+  "updates the messages"
+  [new-message]
+  (dispatch [:messages new-message]))
+
+(defn register
+  "Validates the input and dend message to server when ok"
+  [key username password]
+  (if (= (.-keyCode key) 13)
+    (if (> (count @username) 7)
+      (if (> (count @password) 7)
+        (do
+          (send-transit-game! {:username @username :password @password})
+          (dispatch [:update-game-info {:username @username}])
+          (reset! username nil)
+          (reset! password nil))
+        (update-messages! "Password should have a minimal of 8 characters"))
+      (update-messages! "Username should have a minimal of 8 characters"))
+    ))
+
 (defn game-input []
   (let [username (atom nil) password (atom nil)]
     (fn []
       [:div.col-sm-6
        [:input.form-control
         {:type        :text
-         :placeholder "type in username and press enter"
+         :placeholder "type in username, should be a minimal of 8 characters"
          :value       @username
-         :on-change   #(reset! username (-> % .-target .-value))}]
+         :on-change   #(reset! username (-> % .-target .-value))
+         :on-key-down #(register % username password)}]
        [:input.form-control
         {:type        :password
-         :placeholder "type in password and press enter"
+         :placeholder "type in password and press enter to register with server"
          :value       @password
          :on-change   #(reset! password (-> % .-target .-value))
-         :on-key-down
-                      #(when (= (.-keyCode %) 13)
-                         (send-transit-game! {:username @username :password @password})
-                         (reset! username nil)
-                         (reset! password nil)
-                         )}]]
+         :on-key-down #(register % username password)}]]
       )))
 
-(defn update-messages!
-  "updates the messages"
-  [new-message]
-  (dispatch [:messages new-message]))
+
 
 ;; -- View Components ---------------------------------------------------------
 

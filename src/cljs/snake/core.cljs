@@ -68,14 +68,20 @@
     ))
 
 (reg-event-db
+  :update-game-info
+  (fn [{:keys [game-info] :as db} [_ new-game-info]]
+    (assoc db :game-info (merge game-info new-game-info))
+    ))
+
+(reg-event-db
   :next-state
   (fn
     [{:keys [local-game-state sel-menu-item] :as db} _]
     (cond
       (= sel-menu-item "single")
       (if local-game-state
-        (assoc-in db [:local-game-state] (snakepure/next-state local-game-state))
-        (assoc-in db [:local-game-state] (snakepure/initial-state 5))
+        (assoc db :local-game-state (snakepure/next-state local-game-state))
+        (assoc db :local-game-state (snakepure/initial-state 5))
         )
       :else db)))
 
@@ -83,7 +89,7 @@
   :switch-game-running
   (fn
     [{:keys [local-game-state] :as db} _]
-    (assoc-in db [:local-game-state] (snakepure/switch-game-running local-game-state))))
+    (assoc db :local-game-state (snakepure/switch-game-running local-game-state))))
 
 (reg-event-db
   :sel-menu-item
@@ -131,6 +137,12 @@
   (fn
     [db _]
     (:messages db)))
+
+(reg-sub
+  :game-info
+  (fn
+    [db _]
+    (:game-info db)))
 
 ;; -- View Components ---------------------------------------------------------
 
