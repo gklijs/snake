@@ -6,7 +6,10 @@ body {
 
 .navbar {
     margin-bottom: 10px;
-    border-radius: 0px;
+}
+
+.btn {
+    margin-right: 2%;
 }
 
 .navbar-brand {

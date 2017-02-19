@@ -3,8 +3,7 @@
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
 
-  :dependencies [[bouncer "1.0.0"]
-                 [ch.qos.logback/logback-classic "1.1.7"]
+  :dependencies [[ch.qos.logback/logback-classic "1.1.7"]
                  [compojure "1.5.1"]
                  [cprop "0.1.9"]
                  [luminus-http-kit "0.1.4"]
@@ -14,12 +13,11 @@
                  [metosin/ring-http-response "0.8.0"]
                  [mount "0.1.10"]
                  [org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.9.293" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.473" :scope "provided"]
                  [org.clojure/tools.cli "0.3.5"]
                  [org.clojure/tools.logging "0.3.1"]
                  [org.webjars.bower/tether "1.3.7"]
-                 [org.webjars/bootstrap "4.0.0-alpha.5"]
-                 [org.webjars/font-awesome "4.6.3"]
+                 [org.webjars/bootstrap "4.0.0-alpha.6"]
                  [reagent "0.6.0"]
                  [re-frame "0.9.2"]
                  [com.cognitect/transit-cljs "0.8.239"]
@@ -82,7 +80,7 @@
                    :plugins        [[com.jakemccrary/lein-test-refresh "0.14.0"]
                                     [lein-doo "0.1.7"]
                                     [lein-figwheel "0.5.8"]
-                                    [org.clojure/clojurescript "1.9.293"]]
+                                    [org.clojure/clojurescript "1.9.473"]]
                    :cljsbuild
                                    {:builds
                                     {:app

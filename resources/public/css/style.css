@@ -19,8 +19,7 @@ body {
 }
 
 .controls {
-    font-size: 20px;
-    padding-bottom: 2%;
+    font-size: 18px;
     text-align: center;
 }
 
@@ -64,7 +63,7 @@ body {
     background-color: #84c6ff;
 }
 
-.head-of-snake{
+.head-of-snake {
     border-radius: 25%;
 }
 

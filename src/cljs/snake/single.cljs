@@ -64,8 +64,8 @@
   "The game rendering function"
   []
   [:div
-   [:div.container.controls [:div.row.flex-items-xs-center
-                             [:div.col-xs [score]]
-                             [:div.col-xs [start-stop]]
+   [:div.container.controls [:div.d-flex.justify-content-end
+                             [:div.mr-auto.p-2 [score]]
+                             [:div.p-2 [start-stop]]
                              ]]
    [render-board]])
