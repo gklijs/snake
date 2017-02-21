@@ -106,6 +106,13 @@
     value))
 
 (reg-event-db
+  :remote-game-state
+  (path [:remote-game-state])
+  (fn
+    [remote-game-state [_ value]]
+    value))
+
+(reg-event-db
   :messages
   (path [:messages])
   (fn
@@ -143,6 +150,12 @@
   (fn
     [db _]
     (:game-info db)))
+
+(reg-sub
+  :remote-game-state
+  (fn
+    [db _]
+    (:remote-game-state db)))
 
 ;; -- View Components ---------------------------------------------------------
 

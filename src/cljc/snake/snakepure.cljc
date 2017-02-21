@@ -51,7 +51,7 @@
   "Move the whole snake positions and directions of all snake elements"
   [{:keys [direction body] :as snake} board]
   (let [head-new-position (valid-head (mapv + direction (first body)) board)]
-    (update-in snake [:body] #(into [] (drop-last (cons head-new-position body))))))
+    (assoc snake :body (drop-last (cons head-new-position body)))))
 
 (defn add-points-for-killing
   "Adds the point for killing another snake"
@@ -101,9 +101,11 @@
 (defn handle-sweets
   "Adds new sweet if there are less sweets than the max number, removes the oldest one otherwhise"
   [{:keys [max-number locations] :as sweets} snake board]
-  (if (> max-number (count locations))
-    (update-in sweets [:locations] #(conj locations (rand-free-position snake locations board)))
-    (update-in sweets [:locations] #(remove #{(last locations)} locations))))
+  (if (= 0 (rand-int 5))
+    (if (> max-number (count locations))
+      (assoc sweets :locations (conj locations (rand-free-position snake locations board)))
+      (assoc sweets :locations (drop-last locations)))
+    sweets))
 
 (defn pop-stored-direction
   [{:keys [stored-direction direction-changed?] :as snake}]
