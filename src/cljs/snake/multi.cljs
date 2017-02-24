@@ -52,24 +52,35 @@
 (defn message-input []
   (let [value (atom nil)]
     (fn []
-      [:input.form-control
-       {:type        :text
-        :placeholder "type in a message and press enter to send to everybody"
-        :value       @value
-        :on-change   #(reset! value (-> % .-target .-value))
-        :on-key-down
-                     #(when (= (.-keyCode %) 13)
-                        (send-transit-msg! @value)
-                        (reset! value nil))}])))
+      [:div.d-flex
+       [:input.form-control
+        {:type        :text
+         :placeholder "type in a message and press enter to send to everybody"
+         :value       @value
+         :on-change   #(reset! value (-> % .-target .-value))
+         :on-key-down
+                      #(when (= (.-keyCode %) 13)
+                         (send-transit-msg! @value)
+                         (reset! value nil))}]]
+)))
 
 (defn update-messages!
   "updates the messages"
   [new-message]
+  (logjs new-message)
   (cond
-    (map? new-message) (dispatch [:remote-game-state new-message])
+    (contains? new-message :board) (dispatch [:remote-game-state new-message])
+    (contains? new-message :user-key) (dispatch [:update-game-info new-message])
     (string? new-message) (dispatch [:messages new-message])
     :default (logjs new-message)
     ))
+
+(defn send-direction
+  "sends the new direction to the server, using the websocker"
+  [new-direction game-info]
+  (if-let [username (:username game-info)]
+    (send-transit-game! {:new-direction new-direction})
+    (update-messages! "User not registered, movement will not be send")))
 
 (defn register
   "Validates the input and dend message to server when ok"
@@ -79,7 +90,7 @@
       (if (> (count @password) 7)
         (do
           (send-transit-game! {:username @username :password @password})
-          (dispatch [:update-game-info {:username @username}])
+          (dispatch [:update-game-info {:username @username :password @password}])
           (reset! username nil)
           (reset! password nil))
         (update-messages! "Password should have a minimal of 8 characters"))
@@ -89,7 +100,7 @@
 (defn game-input []
   (let [username (atom nil) password (atom nil)]
     (fn []
-      [:div.col-sm-6
+      [:div.flex-column
        [:input.form-control
         {:type        :text
          :placeholder "type in username, should be a minimal of 8 characters"
@@ -120,18 +131,20 @@
 (defn render-board
   "Renders the board area of the game"
   []
-  (let [remote-game-state (subscribe [:remote-game-state])]
+  (let [remote-game-state (subscribe [:remote-game-state])
+        game-info (subscribe [:game-info])]
     (fn []
       (let [board (:board @remote-game-state)
             snakes (:snakes @remote-game-state)
             sweets (:sweets @remote-game-state)
+            user-key (:user-key @game-info)
             [width height] board
-            snake-head-position-0 #(= (first (get-in snakes [:0 :body])) %)
+            snake-head-position-0 #(= (first (get-in snakes [user-key :body])) %)
             snake-head-position-1 #(= (first (get-in snakes [:1 :body])) %)
             snake-head-position-2 #(= (first (get-in snakes [:2 :body])) %)
             snake-head-position-3 #(= (first (get-in snakes [:3 :body])) %)
             snake-head-position-4 #(= (first (get-in snakes [:4 :body])) %)
-            snake-rest-positions-0 (into #{} (rest (get-in snakes [:0 :body])))
+            snake-rest-positions-0 (into #{} (rest (get-in snakes [user-key :body])))
             snake-rest-positions-1 (into #{} (rest (get-in snakes [:1 :body])))
             snake-rest-positions-2 (into #{} (rest (get-in snakes [:2 :body])))
             snake-rest-positions-3 (into #{} (rest (get-in snakes [:3 :body])))
@@ -159,20 +172,13 @@
 (defn view
   "The multi rendering function"
   []
-  [:div
-   [:div.container
-    [:div.row
-     [:div.col-md-12
-      [:h2 "Welcome to chat"]]]
-    [:div.row
-     [:div.col-sm-6
-      [message-list]]]
-    [:div.row
-     [:div.col-sm-6
-      [message-input]]]
-    [:div.row
-     [game-input]]]
-   [render-board]])
+    [:div.container.row
+     [:div.col-md-8
+      [render-board]]
+     [:div.col-md-4
+      [message-list]
+      [message-input]
+      [game-input]]])
 
 (defn initsockets []
   (make-chat-websocket! (str "ws://" (.-host js/location) "/chat") update-messages!)

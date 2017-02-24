@@ -51,13 +51,15 @@
 
 (reg-event-db
   :change-direction
-  (fn [{:keys [local-game-state sel-menu-item slide] :as db} [_ new-direction]]
+  (fn [{:keys [local-game-state game-info sel-menu-item slide] :as db} [_ new-direction]]
     (cond
       (= sel-menu-item "single")
       (let [new-snake (snakepure/change-direction (get-in local-game-state [:snakes :0]) new-direction)]
         (if new-snake
           (assoc-in db [:local-game-state :snakes :0] new-snake)
           db))
+      (= sel-menu-item "multi")
+      (do (multi/send-direction new-direction game-info) db)
       (= sel-menu-item "presentation")
       (cond
         (= [1 0] new-direction) (update db :slide inc)

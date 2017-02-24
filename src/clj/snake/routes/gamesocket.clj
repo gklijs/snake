@@ -36,13 +36,12 @@
   "send the next game state to all living snakes in the current game state"
   []
   (let [current-snakes (:snakes @game-state)
-        next-game-sate (swap! game-state snakepure/next-state)
-        user-key-unique-key (clojure.set/map-invert @unique-key-user-key)]
-    (doseq [[k v] current-snakes]
-      (if-let [channel (get @channels (get user-key-unique-key (name k)))]
-        (send! channel (writejson next-game-sate))))))
+        next-game-sate (swap! game-state snakepure/next-state)]
+    (doseq [[k v]@channels]
+      (if (contains? current-snakes (get-in @unique-key-user-key[k :user-key]))
+        (send! v (writejson next-game-sate))))))
 
-(def job (every 1000 #(send-next-game-state) my-pool))
+(def job (every 150 #(send-next-game-state) my-pool))
 
 (defn connect! [channel unique-key]
   (swap! channels assoc unique-key channel))
@@ -56,8 +55,9 @@
   [channel unique-key user-key password]
   (letfn [(register [] (do
                          (swap! userinfo assoc-in [user-key :password] password)
-                         (swap! unique-key-user-key assoc unique-key (name user-key))
+                         (swap! unique-key-user-key assoc unique-key {:user-key user-key})
                          (swap! game-state assoc-in [:snakes user-key] (snakepure/rand-snake (:board @game-state)))
+                         (send! channel (writejson {:user-key user-key}))
                          (send! channel (writejson (str "Succesfully registered with unique key: " (name unique-key))))))]
     (if-let [thisuserinfo (get @userinfo user-key)]
       (if
@@ -66,13 +66,26 @@
         (send! channel (writejson "Username already exists with other password")))
       (register))))
 
+(defn move-snake-user
+  "If a valid move, updates the game state"
+  [new-direction unique-key game-state]
+         (if-let [user-key (get-in @unique-key-user-key [unique-key :user-key])]
+            (if-let [current-snake (get-in game-state [:snakes user-key])]
+              (if-let [new-snake (snakepure/change-direction current-snake new-direction)]
+                (assoc-in game-state [:snakes user-key] new-snake)
+                game-state)
+              game-state)
+            game-state
+            ))
+
 (defn handle-message
   "Does the message handling"
   [msg unique-key]
   (let [game-input (readjson msg)]
     (if-let [channel (get @channels unique-key)]
       (cond
-        (seq (:username game-input)) (register-user channel unique-key (keyword (clojure.string/lower-case (:username game-input))) (:password game-input))
+        (contains? game-input :username) (register-user channel unique-key (keyword (clojure.string/lower-case (:username game-input))) (:password game-input))
+        (contains? game-input :new-direction) (swap! game-state #(move-snake-user (:new-direction game-input) unique-key %))
         :else (send! channel (writejson "Could not handle data."))))))
 
 (defn ws-handler [request]
