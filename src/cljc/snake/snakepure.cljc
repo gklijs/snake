@@ -27,8 +27,8 @@
   [{:keys [body] :as snake}]
   (let [last-2 (take-last 2 body)
         direction (mapv - (second last-2) (first last-2))
-        new-part (mapv + (last body) direction) ]
-      (assoc snake :body (concat body [new-part]))))
+        new-part (mapv + (last body) direction)]
+    (assoc snake :body (concat body [new-part]))))
 
 (defn rand-snake
   "this function creates a new random snake, based only on the board"
@@ -37,14 +37,14 @@
         start-position [[(+ 5 (rand-int (- x 10))) (+ 5 (rand-int (- y 10)))]]
         direction (rand-nth valid-directons)]
     {
-     :direction          direction
-     :body               (conj start-position
-                               (mapv - (first start-position) (mapv * [1 1] direction))
-                               (mapv - (first start-position) (mapv * [2 2] direction))
-                               (mapv - (first start-position) (mapv * [3 3] direction))
-                               (mapv - (first start-position) (mapv * [4 4] direction)))
-     :stored-direction   nil
-     :points             0
+     :direction        direction
+     :body             (conj start-position
+                             (mapv - (first start-position) (mapv * [1 1] direction))
+                             (mapv - (first start-position) (mapv * [2 2] direction))
+                             (mapv - (first start-position) (mapv * [3 3] direction))
+                             (mapv - (first start-position) (mapv * [4 4] direction)))
+     :stored-direction nil
+     :points           0
      }))
 
 (defn move-snake
@@ -119,8 +119,8 @@
   "Gives the next state of the game-state"
   [{:keys [snakes game-running? board sweets] :as game-state}]
   (if (true? game-running?)
-    (if (empty? (:0 snakes))
-      (assoc-in game-state [:game-running?] false)
+    (if (empty? snakes)
+      game-state
       (let [new-snakes (atom snakes)]
         (doseq [[k v] @new-snakes] (swap! new-snakes #(update % k pop-stored-direction)))
         (doseq [[k v] @new-snakes] (swap! new-snakes #(assoc % k (move-snake v board))))
@@ -131,7 +131,7 @@
     game-state))
 
 (defn switch-game-running
-  "Pause or un-pause to game"
+  "Pause or un-pause to game, only to be used locally"
   [{:keys [snakes game-running? board] :as game-state}]
   (if (empty? (:0 snakes))
     (-> game-state
@@ -149,7 +149,7 @@
   (if snake
     (if (nil? stored-direction)
       (if (not= (map #(* % -1) direction) new-direction)
-            (assoc snake :stored-direction new-direction)))))
+        (assoc snake :stored-direction new-direction)))))
 
 (defn initial-state
   "Gives the initial game state"

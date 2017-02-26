@@ -6,38 +6,33 @@
 (defn render-board
   "Renders the board area of the game"
   []
-  (let [local-game-state (subscribe [:local-game-state])]
+  (let [game-state (subscribe [:local-game-state])]
     (fn []
-      (let [board (:board @local-game-state)
-            snakes (:snakes @local-game-state)
-            sweets (:sweets @local-game-state)
+      (let [board (:board @game-state)
+            snakes (:snakes @game-state)
+            sweets (:sweets @game-state)
             [width height] board
-            snake-head-position-0 #(= (first (get-in snakes [:0 :body])) %)
-            snake-head-position-1 #(= (first (get-in snakes [:1 :body])) %)
-            snake-head-position-2 #(= (first (get-in snakes [:2 :body])) %)
-            snake-head-position-3 #(= (first (get-in snakes [:3 :body])) %)
-            snake-head-position-4 #(= (first (get-in snakes [:4 :body])) %)
-            snake-rest-positions-0 (into #{} (rest (get-in snakes [:0 :body])))
-            snake-rest-positions-1 (into #{} (rest (get-in snakes [:1 :body])))
-            snake-rest-positions-2 (into #{} (rest (get-in snakes [:2 :body])))
-            snake-rest-positions-3 (into #{} (rest (get-in snakes [:3 :body])))
-            snake-rest-positions-4 (into #{} (rest (get-in snakes [:4 :body])))
+            is-head-position-own #(= (first (get-in snakes [:0 :body])) %)
+            is-rest-position-own (into #{} (rest (get-in snakes [:0 :body])))
+            other-snake-head (atom #{})
+            other-snake-rest (atom #{})
+            update-atoms (doseq [[k v] snakes] (if-not (= k :0)
+                                                 (do
+                                                   (swap! other-snake-head #(conj % (first (:body v))))
+                                                   (swap! other-snake-rest #(into % (rest (:body v)))))
+                                                 ))
+            is-head-position-other (into #{} @other-snake-head)
+            is-rest-position-other (into #{} @other-snake-rest)
             sweets-positions (into #{} (:locations sweets))
             cells (for [y (range height)]
                     (into [:div.row.flex-items-xs-center]
                           (for [x (range width)
                                 :let [current-pos [x y]]]
                             (cond
-                              (snake-head-position-0 current-pos) [:div.col-xs.board-element.snake-on-cell-0.head-of-snake]
-                              (snake-head-position-1 current-pos) [:div.col-xs.board-element.snake-on-cell-1.head-of-snake]
-                              (snake-head-position-2 current-pos) [:div.col-xs.board-element.snake-on-cell-2.head-of-snake]
-                              (snake-head-position-3 current-pos) [:div.col-xs.board-element.snake-on-cell-3.head-of-snake]
-                              (snake-head-position-4 current-pos) [:div.col-xs.board-element.snake-on-cell-4.head-of-snake]
-                              (snake-rest-positions-0 current-pos) [:div.col-xs.board-element.snake-on-cell-0]
-                              (snake-rest-positions-1 current-pos) [:div.col-xs.board-element.snake-on-cell-1]
-                              (snake-rest-positions-2 current-pos) [:div.col-xs.board-element.snake-on-cell-2]
-                              (snake-rest-positions-3 current-pos) [:div.col-xs.board-element.snake-on-cell-3]
-                              (snake-rest-positions-4 current-pos) [:div.col-xs.board-element.snake-on-cell-4]
+                              (is-head-position-own current-pos) [:div.col-xs.board-element.snake-on-cell-own.head-of-snake]
+                              (is-head-position-other current-pos) [:div.col-xs.board-element.snake-on-cell-other.head-of-snake]
+                              (is-rest-position-own current-pos) [:div.col-xs.board-element.snake-on-cell-own]
+                              (is-rest-position-other current-pos) [:div.col-xs.board-element.snake-on-cell-other]
                               (sweets-positions current-pos) [:div.col-xs.board-element.sweet]
                               :default [:div.col-xs.board-element.cell]))))]
         (into [:div.container] cells)))))

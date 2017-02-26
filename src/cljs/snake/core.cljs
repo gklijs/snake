@@ -6,7 +6,8 @@
             [snake.multi :as multi]
             [reagent.core :as reagent :refer [atom]]
             [re-frame.core :refer [reg-event-db path reg-sub subscribe dispatch dispatch-sync]]
-            [goog.events :as events]))
+            [goog.events :as events]
+            [clojure.string :as str]))
 
 ;; -- Js functions ---------------------------------------------------------
 
@@ -38,7 +39,6 @@
                     :sel-menu-item     "home"
                     :slide             -1
                     :messages          []
-                    :game-info         {}
                     :remote-game-state nil})
 
 ;; -- Event Handlers ----------------------------------------------------------
@@ -51,7 +51,7 @@
 
 (reg-event-db
   :change-direction
-  (fn [{:keys [local-game-state game-info sel-menu-item slide] :as db} [_ new-direction]]
+  (fn [{:keys [local-game-state sel-menu-item slide] :as db} [_ new-direction]]
     (cond
       (= sel-menu-item "single")
       (let [new-snake (snakepure/change-direction (get-in local-game-state [:snakes :0]) new-direction)]
@@ -59,7 +59,7 @@
           (assoc-in db [:local-game-state :snakes :0] new-snake)
           db))
       (= sel-menu-item "multi")
-      (do (multi/send-direction new-direction game-info) db)
+      (do (multi/send-direction new-direction) db)
       (= sel-menu-item "presentation")
       (cond
         (= [1 0] new-direction) (update db :slide inc)
@@ -67,12 +67,6 @@
         :default db)
       :default db
       )
-    ))
-
-(reg-event-db
-  :update-game-info
-  (fn [{:keys [game-info] :as db} [_ new-game-info]]
-    (assoc db :game-info (merge game-info new-game-info))
     ))
 
 (reg-event-db
@@ -119,7 +113,7 @@
   (path [:messages])
   (fn
     [messages [_ value]]
-    (take 5 (conj messages value))))
+    (take 10 (conj messages value))))
 
 ;; -- Subscription Handlers ---------------------------------------------------
 
@@ -146,12 +140,6 @@
   (fn
     [db _]
     (:messages db)))
-
-(reg-sub
-  :game-info
-  (fn
-    [db _]
-    (:game-info db)))
 
 (reg-sub
   :remote-game-state
@@ -181,7 +169,7 @@
       (cond
         (= @sel-menu-item "single") [single/view]
         (= @sel-menu-item "presentation") [presentation/view]
-        (= @sel-menu-item "multi") [multi/view]
+        (str/starts-with? @sel-menu-item "multi") [multi/view]
         :else [:div.container [:div.row.flex-items-xs-center [:h1 "Some day this might show " + @sel-menu-item]]])
       )))
 

@@ -5,6 +5,7 @@
 
 (defonce ws-chan-chat (atom nil))
 (defonce ws-chan-game (atom nil))
+(defonce game-info (atom {}))
 (def json-reader (t/reader :json))
 (def json-writer (t/writer :json))
 
@@ -62,23 +63,22 @@
                       #(when (= (.-keyCode %) 13)
                          (send-transit-msg! @value)
                          (reset! value nil))}]]
-)))
+      )))
 
 (defn update-messages!
   "updates the messages"
   [new-message]
-  (logjs new-message)
   (cond
     (contains? new-message :board) (dispatch [:remote-game-state new-message])
-    (contains? new-message :user-key) (dispatch [:update-game-info new-message])
+    (contains? new-message :user-key) (swap! game-info #(merge % new-message))
     (string? new-message) (dispatch [:messages new-message])
     :default (logjs new-message)
     ))
 
 (defn send-direction
   "sends the new direction to the server, using the websocker"
-  [new-direction game-info]
-  (if-let [username (:username game-info)]
+  [new-direction]
+  (if-let [username (:username @game-info)]
     (send-transit-game! {:new-direction new-direction})
     (update-messages! "User not registered, movement will not be send")))
 
@@ -88,31 +88,43 @@
   (if (= (.-keyCode key) 13)
     (if (> (count @username) 7)
       (if (> (count @password) 7)
-        (do
-          (send-transit-game! {:username @username :password @password})
-          (dispatch [:update-game-info {:username @username :password @password}])
-          (reset! username nil)
-          (reset! password nil))
+        (let [info-map {:username @username :password @password}]
+          (send-transit-game! info-map)
+          (swap! game-info #(merge % info-map)))
         (update-messages! "Password should have a minimal of 8 characters"))
       (update-messages! "Username should have a minimal of 8 characters"))
     ))
 
+(defn start
+  "Renders the button to start the game, after the snake has died"
+  [user-key game-state]
+  (if (nil? (get-in game-state [:snakes user-key]))
+    [:div.p-2
+     [:button.btn.btn-secondary {:type "button" :on-click #(send-transit-game! {:start true})} "Start"]]))
+
 (defn game-input []
-  (let [username (atom nil) password (atom nil)]
+  (let [username (atom nil)
+        password (atom nil)
+        remote-game-state (subscribe [:remote-game-state])]
     (fn []
-      [:div.flex-column
-       [:input.form-control
-        {:type        :text
-         :placeholder "type in username, should be a minimal of 8 characters"
-         :value       @username
-         :on-change   #(reset! username (-> % .-target .-value))
-         :on-key-down #(register % username password)}]
-       [:input.form-control
-        {:type        :password
-         :placeholder "type in password and press enter to register with server"
-         :value       @password
-         :on-change   #(reset! password (-> % .-target .-value))
-         :on-key-down #(register % username password)}]]
+      (if-let [user-key (:user-key @game-info)]
+        [:div.container.controls [:div.d-flex.justify-content-end
+                                  [:div.mr-auto.p-2 [:div.score (str "Score: " (get-in @remote-game-state [:snakes user-key :points]))]]
+                                  (start user-key @remote-game-state)
+                                  ]]
+        [:div.flex-column
+         [:input.form-control
+          {:type        :text
+           :placeholder "type in username, should be a minimal of 8 characters"
+           :value       @username
+           :on-change   #(reset! username (-> % .-target .-value))
+           :on-key-down #(register % username password)}]
+         [:input.form-control
+          {:type        :password
+           :placeholder "type in password and press enter to register with server"
+           :value       @password
+           :on-change   #(reset! password (-> % .-target .-value))
+           :on-key-down #(register % username password)}]])
       )))
 
 
@@ -130,55 +142,54 @@
 
 (defn render-board
   "Renders the board area of the game"
+  [user-key game-state]
+  (let [board (:board game-state)
+        snakes (:snakes game-state)
+        sweets (:sweets game-state)
+        [width height] board
+        is-head-position-own #(= (first (get-in snakes [user-key :body])) %)
+        is-rest-position-own (into #{} (rest (get-in snakes [user-key :body])))
+        other-snake-head (atom #{})
+        other-snake-rest (atom #{})
+        update-atoms (doseq [[k v] snakes] (if-not (= k user-key)
+                                             (do
+                                               (swap! other-snake-head #(conj % (first (:body v))))
+                                               (swap! other-snake-rest #(into % (rest (:body v)))))
+                                             ))
+        is-head-position-other (into #{} @other-snake-head)
+        is-rest-position-other (into #{} @other-snake-rest)
+        sweets-positions (into #{} (:locations sweets))
+        cells (for [y (range height)]
+                (into [:div.row.flex-items-xs-center]
+                      (for [x (range width)
+                            :let [current-pos [x y]]]
+                        (cond
+                          (is-head-position-own current-pos) [:div.col-xs.board-element.snake-on-cell-own.head-of-snake]
+                          (is-head-position-other current-pos) [:div.col-xs.board-element.snake-on-cell-other.head-of-snake]
+                          (is-rest-position-own current-pos) [:div.col-xs.board-element.snake-on-cell-own]
+                          (is-rest-position-other current-pos) [:div.col-xs.board-element.snake-on-cell-other]
+                          (sweets-positions current-pos) [:div.col-xs.board-element.sweet]
+                          :default [:div.col-xs.board-element.cell]))))]
+    (into [:div.container] cells)))
+
+(defn render-main
+  "Renders the main view, either the login, or the board"
   []
-  (let [remote-game-state (subscribe [:remote-game-state])
-        game-info (subscribe [:game-info])]
-    (fn []
-      (let [board (:board @remote-game-state)
-            snakes (:snakes @remote-game-state)
-            sweets (:sweets @remote-game-state)
-            user-key (:user-key @game-info)
-            [width height] board
-            snake-head-position-0 #(= (first (get-in snakes [user-key :body])) %)
-            snake-head-position-1 #(= (first (get-in snakes [:1 :body])) %)
-            snake-head-position-2 #(= (first (get-in snakes [:2 :body])) %)
-            snake-head-position-3 #(= (first (get-in snakes [:3 :body])) %)
-            snake-head-position-4 #(= (first (get-in snakes [:4 :body])) %)
-            snake-rest-positions-0 (into #{} (rest (get-in snakes [user-key :body])))
-            snake-rest-positions-1 (into #{} (rest (get-in snakes [:1 :body])))
-            snake-rest-positions-2 (into #{} (rest (get-in snakes [:2 :body])))
-            snake-rest-positions-3 (into #{} (rest (get-in snakes [:3 :body])))
-            snake-rest-positions-4 (into #{} (rest (get-in snakes [:4 :body])))
-            sweets-positions (into #{} (:locations sweets))
-            cells (for [y (range height)]
-                    (into [:div.row.flex-items-xs-center]
-                          (for [x (range width)
-                                :let [current-pos [x y]]]
-                            (cond
-                              (snake-head-position-0 current-pos) [:div.col-xs.board-element.snake-on-cell-0.head-of-snake]
-                              (snake-head-position-1 current-pos) [:div.col-xs.board-element.snake-on-cell-1.head-of-snake]
-                              (snake-head-position-2 current-pos) [:div.col-xs.board-element.snake-on-cell-2.head-of-snake]
-                              (snake-head-position-3 current-pos) [:div.col-xs.board-element.snake-on-cell-3.head-of-snake]
-                              (snake-head-position-4 current-pos) [:div.col-xs.board-element.snake-on-cell-4.head-of-snake]
-                              (snake-rest-positions-0 current-pos) [:div.col-xs.board-element.snake-on-cell-0]
-                              (snake-rest-positions-1 current-pos) [:div.col-xs.board-element.snake-on-cell-1]
-                              (snake-rest-positions-2 current-pos) [:div.col-xs.board-element.snake-on-cell-2]
-                              (snake-rest-positions-3 current-pos) [:div.col-xs.board-element.snake-on-cell-3]
-                              (snake-rest-positions-4 current-pos) [:div.col-xs.board-element.snake-on-cell-4]
-                              (sweets-positions current-pos) [:div.col-xs.board-element.sweet]
-                              :default [:div.col-xs.board-element.cell]))))]
-        (into [:div.container] cells)))))
+  (fn []
+    (let [remote-game-state (subscribe [:remote-game-state])]
+      (if-let [user-key (:user-key @game-info)]
+        (render-board user-key @remote-game-state)))))
 
 (defn view
   "The multi rendering function"
   []
-    [:div.container.row
-     [:div.col-md-8
-      [render-board]]
-     [:div.col-md-4
-      [message-list]
-      [message-input]
-      [game-input]]])
+  [:div.container.row
+   [:div.col-md-8
+    [game-input]
+    [render-main]]
+   [:div.col-md-4
+    [message-list]
+    [message-input]]])
 
 (defn initsockets []
   (make-chat-websocket! (str "ws://" (.-host js/location) "/chat") update-messages!)

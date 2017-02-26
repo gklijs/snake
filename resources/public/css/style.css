@@ -43,24 +43,12 @@ body {
     background-color: rgba(0, 0, 0, 0.15);
 }
 
-.snake-on-cell-0 {
+.snake-on-cell-own {
     background-color: #e30b5c;
 }
 
-.snake-on-cell-1 {
-    background-color: #6b80ba
-}
-
-.snake-on-cell-2 {
+.snake-on-cell-other {
     background-color: #2aabd2;
-}
-
-.snake-on-cell-3 {
-    background-color: #31708f;
-}
-
-.snake-on-cell-4 {
-    background-color: #84c6ff;
 }
 
 .head-of-snake {

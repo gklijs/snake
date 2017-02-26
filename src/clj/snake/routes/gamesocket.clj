@@ -37,8 +37,8 @@
   []
   (let [current-snakes (:snakes @game-state)
         next-game-sate (swap! game-state snakepure/next-state)]
-    (doseq [[k v]@channels]
-      (if (contains? current-snakes (get-in @unique-key-user-key[k :user-key]))
+    (doseq [[k v] @channels]
+      (if (contains? current-snakes (get-in @unique-key-user-key [k :user-key]))
         (send! v (writejson next-game-sate))))))
 
 (def job (every 150 #(send-next-game-state) my-pool))
@@ -53,11 +53,10 @@
 (defn register-user
   "registeres the user"
   [channel unique-key user-key password]
-  (letfn [(register [] (do
+  (letfn [(register [] (let [key-map {:user-key user-key}]
                          (swap! userinfo assoc-in [user-key :password] password)
-                         (swap! unique-key-user-key assoc unique-key {:user-key user-key})
-                         (swap! game-state assoc-in [:snakes user-key] (snakepure/rand-snake (:board @game-state)))
-                         (send! channel (writejson {:user-key user-key}))
+                         (swap! unique-key-user-key assoc unique-key key-map)
+                         (send! channel (writejson key-map))
                          (send! channel (writejson (str "Succesfully registered with unique key: " (name unique-key))))))]
     (if-let [thisuserinfo (get @userinfo user-key)]
       (if
@@ -69,14 +68,25 @@
 (defn move-snake-user
   "If a valid move, updates the game state"
   [new-direction unique-key game-state]
-         (if-let [user-key (get-in @unique-key-user-key [unique-key :user-key])]
-            (if-let [current-snake (get-in game-state [:snakes user-key])]
-              (if-let [new-snake (snakepure/change-direction current-snake new-direction)]
-                (assoc-in game-state [:snakes user-key] new-snake)
-                game-state)
-              game-state)
-            game-state
-            ))
+  (if-let [user-key (get-in @unique-key-user-key [unique-key :user-key])]
+    (if-let [current-snake (get-in game-state [:snakes user-key])]
+      (if-let [new-snake (snakepure/change-direction current-snake new-direction)]
+        (assoc-in game-state [:snakes user-key] new-snake)
+        game-state)
+      game-state)
+    game-state
+    ))
+
+(defn add-snake-user
+  "If user currently has no snake, updates the game state with the new snake"
+  [unique-key game-state]
+  (if-let [user-key (get-in @unique-key-user-key [unique-key :user-key])]
+    (if-not
+      (get-in game-state [:snakes user-key])
+      (assoc-in game-state [:snakes user-key] (snakepure/rand-snake (:board game-state)))
+      game-state)
+    game-state
+    ))
 
 (defn handle-message
   "Does the message handling"
@@ -86,6 +96,7 @@
       (cond
         (contains? game-input :username) (register-user channel unique-key (keyword (clojure.string/lower-case (:username game-input))) (:password game-input))
         (contains? game-input :new-direction) (swap! game-state #(move-snake-user (:new-direction game-input) unique-key %))
+        (contains? game-input :start) (swap! game-state #(add-snake-user unique-key %))
         :else (send! channel (writejson "Could not handle data."))))))
 
 (defn ws-handler [request]
