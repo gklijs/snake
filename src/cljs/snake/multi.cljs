@@ -148,15 +148,10 @@
         sweets (:sweets game-state)
         [width height] board
         is-head-position-own #(= (first (get-in snakes [user-key :body])) %)
+        is-head-position-other (into #{} (conj (for [[k v]snakes] (if-not (= k user-key) (first (:body v))))))
         is-rest-position-own (into #{} (rest (get-in snakes [user-key :body])))
-        other-snake-head (atom #{})
         other-snake-rest (atom #{})
-        update-atoms (doseq [[k v] snakes] (if-not (= k user-key)
-                                             (do
-                                               (swap! other-snake-head #(conj % (first (:body v))))
-                                               (swap! other-snake-rest #(into % (rest (:body v)))))
-                                             ))
-        is-head-position-other (into #{} @other-snake-head)
+        update-atoms (doseq [[k v] snakes] (if-not (= k user-key) (swap! other-snake-rest #(into % (rest (:body v))))))
         is-rest-position-other (into #{} @other-snake-rest)
         sweets-positions (into #{} (:locations sweets))
         cells (for [y (range height)]

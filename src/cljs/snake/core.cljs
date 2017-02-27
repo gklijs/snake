@@ -76,7 +76,11 @@
     (cond
       (= sel-menu-item "single")
       (if local-game-state
-        (assoc db :local-game-state (snakepure/next-state local-game-state))
+        (let [next-game-state (snakepure/next-state local-game-state)]
+          (if (and (:game-running? local-game-state)(nil? (get-in next-game-state [:snakes :0])))
+            (assoc db :local-game-state (snakepure/switch-game-running next-game-state))
+            (assoc db :local-game-state next-game-state)
+            ))
         (assoc db :local-game-state (snakepure/initial-state 5))
         )
       :else db)))
@@ -169,7 +173,7 @@
       (cond
         (= @sel-menu-item "single") [single/view]
         (= @sel-menu-item "presentation") [presentation/view]
-        (str/starts-with? @sel-menu-item "multi") [multi/view]
+        (= @sel-menu-item "multi") [multi/view]
         :else [:div.container [:div.row.flex-items-xs-center [:h1 "Some day this might show " + @sel-menu-item]]])
       )))
 

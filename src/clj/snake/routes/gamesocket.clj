@@ -3,7 +3,7 @@
             [org.httpkit.server :refer [send! with-channel on-close on-receive]]
             [cognitect.transit :as t]
             [snake.snakepure :as snakepure]
-            [overtone.at-at :refer [every stop mk-pool]])
+            [overtone.at-at :refer [every stop-and-reset-pool! mk-pool]])
   (:import (java.io ByteArrayOutputStream ByteArrayInputStream)))
 
 (def my-pool (mk-pool))
@@ -12,6 +12,7 @@
 (defonce unique-key-user-key (atom {}))
 (defonce key-counter (atom 0))
 (defonce game-state (atom (snakepure/initial-state 5)))
+(defonce update-job (atom nil))
 
 (defn readjson [data]
   (let [in (ByteArrayInputStream. (.getBytes data))
@@ -41,14 +42,15 @@
       (if (contains? current-snakes (get-in @unique-key-user-key [k :user-key]))
         (send! v (writejson next-game-sate))))))
 
-(def job (every 150 #(send-next-game-state) my-pool))
-
 (defn connect! [channel unique-key]
   (swap! channels assoc unique-key channel))
 
 (defn disconnect! [unique-key status]
   (swap! unique-key-user-key #(dissoc % unique-key))
-  (swap! channels #(dissoc % unique-key)))
+  (swap! channels #(dissoc % unique-key))
+  (if (empty? @channels) (do
+                           (stop-and-reset-pool! my-pool)
+                           (reset! update-job nil))))
 
 (defn register-user
   "registeres the user"
@@ -57,7 +59,9 @@
                          (swap! userinfo assoc-in [user-key :password] password)
                          (swap! unique-key-user-key assoc unique-key key-map)
                          (send! channel (writejson key-map))
-                         (send! channel (writejson (str "Succesfully registered with unique key: " (name unique-key))))))]
+                         (send! channel (writejson (str "Succesfully registered with unique key: " (name unique-key))))
+                         (if (nil? @update-job) (reset! update-job (every 150 #(send-next-game-state) my-pool)))
+                         ))]
     (if-let [thisuserinfo (get @userinfo user-key)]
       (if
         (= password (get thisuserinfo :password))

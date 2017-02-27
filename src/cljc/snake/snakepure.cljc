@@ -13,13 +13,14 @@
 (defn rand-free-position
   "This function takes the snake, locations of the sweets and the board-size as arguments, and
   returns a random position not colliding with the snake body or sweets"
-  [snake locations [x y]]
-  (let [positions-set (concat (into #{} (:body snake)) locations)
+  [snakes locations [x y]]
+  (let [positions-set (atom locations)
+        update-positions-set (doseq [[k v] snakes] (swap! positions-set #(into % (:body v))))
         board-positions (for [x-pos (range x)
                               y-pos (range y)]
                           [x-pos y-pos])
         free-position? (atom (rand-nth board-positions))]
-    (while (some #(= @free-position? %) positions-set) (reset! free-position? (rand-nth board-positions)))
+    (while (some #(= @free-position? %) @positions-set) (reset! free-position? (rand-nth board-positions)))
     @free-position?))
 
 (defn grow-snake
@@ -100,10 +101,10 @@
 
 (defn handle-sweets
   "Adds new sweet if there are less sweets than the max number, removes the oldest one otherwhise"
-  [{:keys [max-number locations] :as sweets} snake board]
+  [{:keys [max-number locations] :as sweets} snakes board]
   (if (= 0 (rand-int 5))
     (if (> max-number (count locations))
-      (assoc sweets :locations (conj locations (rand-free-position snake locations board)))
+      (assoc sweets :locations (conj locations (rand-free-position snakes locations board)))
       (assoc sweets :locations (drop-last locations)))
     sweets))
 
@@ -133,7 +134,7 @@
 (defn switch-game-running
   "Pause or un-pause to game, only to be used locally"
   [{:keys [snakes game-running? board] :as game-state}]
-  (if (empty? (:0 snakes))
+  (if (and (false? game-running?)(empty? (:0 snakes)))
     (-> game-state
         (assoc-in [:snakes :0] (rand-snake board))
         (assoc-in [:snakes :1] (rand-snake board))
