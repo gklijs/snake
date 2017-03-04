@@ -101,8 +101,8 @@
 
 (defn handle-sweets
   "Adds new sweet if there are less sweets than the max number, removes the oldest one otherwhise"
-  [{:keys [max-number locations] :as sweets} snakes board]
-  (if (= 0 (rand-int 5))
+  [{:keys [max-number locations] :as sweets} snakes board step]
+  (if (= 0 (mod step 5))
     (if (> max-number (count locations))
       (assoc sweets :locations (conj locations (rand-free-position snakes locations board)))
       (assoc sweets :locations (drop-last locations)))
@@ -118,7 +118,7 @@
 
 (defn next-state
   "Gives the next state of the game-state"
-  [{:keys [snakes game-running? board sweets] :as game-state}]
+  [{:keys [snakes game-running? board sweets step] :as game-state}]
   (if (true? game-running?)
     (if (empty? snakes)
       game-state
@@ -128,13 +128,14 @@
         (-> game-state
             (assoc :snakes (handle-collisions @new-snakes))
             (feed-snakes)
-            (update :sweets handle-sweets @new-snakes board))))
+            (update :sweets handle-sweets @new-snakes board step)
+            (update :step inc))))
     game-state))
 
 (defn switch-game-running
   "Pause or un-pause to game, only to be used locally"
   [{:keys [snakes game-running? board] :as game-state}]
-  (if (and (false? game-running?)(empty? (:0 snakes)))
+  (if (and (false? game-running?) (empty? (:0 snakes)))
     (-> game-state
         (assoc-in [:snakes :0] (rand-snake board))
         (assoc-in [:snakes :1] (rand-snake board))
@@ -164,4 +165,5 @@
      :sweets        {:max-number 20
                      :locations  []}
      :game-running? true
+     :step          0
      }))

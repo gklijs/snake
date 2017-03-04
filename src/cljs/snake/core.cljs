@@ -77,7 +77,7 @@
       (= sel-menu-item "single")
       (if local-game-state
         (let [next-game-state (snakepure/next-state local-game-state)]
-          (if (and (:game-running? local-game-state)(nil? (get-in next-game-state [:snakes :0])))
+          (if (and (:game-running? local-game-state) (nil? (get-in next-game-state [:snakes :0])))
             (assoc db :local-game-state (snakepure/switch-game-running next-game-state))
             (assoc db :local-game-state next-game-state)
             ))

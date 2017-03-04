@@ -4,6 +4,7 @@
   :url "http://example.com/FIXME"
 
   :dependencies [[ch.qos.logback/logback-classic "1.1.7"]
+                 [com.cognitect/transit-cljs "0.8.239"]
                  [compojure "1.5.1"]
                  [cprop "0.1.9"]
                  [luminus-http-kit "0.1.4"]
@@ -12,19 +13,20 @@
                  [markdown-clj "0.9.90"]
                  [metosin/ring-http-response "0.8.0"]
                  [mount "0.1.10"]
+                 [org.clojure/core.async "0.3.441"]
                  [org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.9.473" :scope "provided"]
                  [org.clojure/tools.cli "0.3.5"]
                  [org.clojure/tools.logging "0.3.1"]
                  [org.webjars.bower/tether "1.3.7"]
                  [org.webjars/bootstrap "4.0.0-alpha.6"]
-                 [reagent "0.6.0"]
+                 [overtone/at-at "1.2.0"]
+                 [quil "2.6.0"]
                  [re-frame "0.9.2"]
-                 [com.cognitect/transit-cljs "0.8.239"]
+                 [reagent "0.6.0"]
                  [ring-middleware-format "0.7.0"]
                  [ring-webjars "0.1.1"]
                  [ring/ring-defaults "0.2.1"]
-                 [overtone/at-at "1.2.0"]
                  [selmer "1.10.0"]]
 
   :min-lein-version "2.0.0"

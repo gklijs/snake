@@ -1,7 +1,9 @@
 (ns snake.multi
   (:require [cognitect.transit :as t]
             [reagent.core :as reagent :refer [atom]]
-            [re-frame.core :refer [subscribe dispatch]]))
+            [re-frame.core :refer [subscribe dispatch]]
+            [quil.core :as q :include-macros true]
+            [utils.sketch :refer [sketch-component ellipse draw-snake]]))
 
 (defonce ws-chan-chat (atom nil))
 (defonce ws-chan-game (atom nil))
@@ -130,6 +132,8 @@
 
 
 ;; -- View Components ---------------------------------------------------------
+(defonce enlarge (atom 6))
+(defonce last-drawn-step (atom nil))
 
 (defn message-list
   "renders the list of messages"
@@ -140,32 +144,30 @@
        ^{:key i}
        [:li message])]))
 
-(defn render-board
-  "Renders the board area of the game"
-  [user-key game-state]
-  (let [board (:board game-state)
-        snakes (:snakes game-state)
-        sweets (:sweets game-state)
-        [width height] board
-        is-head-position-own #(= (first (get-in snakes [user-key :body])) %)
-        is-head-position-other (into #{} (conj (for [[k v]snakes] (if-not (= k user-key) (first (:body v))))))
-        is-rest-position-own (into #{} (rest (get-in snakes [user-key :body])))
-        other-snake-rest (atom #{})
-        update-atoms (doseq [[k v] snakes] (if-not (= k user-key) (swap! other-snake-rest #(into % (rest (:body v))))))
-        is-rest-position-other (into #{} @other-snake-rest)
-        sweets-positions (into #{} (:locations sweets))
-        cells (for [y (range height)]
-                (into [:div.row.flex-items-xs-center]
-                      (for [x (range width)
-                            :let [current-pos [x y]]]
-                        (cond
-                          (is-head-position-own current-pos) [:div.col-xs.board-element.snake-on-cell-own.head-of-snake]
-                          (is-head-position-other current-pos) [:div.col-xs.board-element.snake-on-cell-other.head-of-snake]
-                          (is-rest-position-own current-pos) [:div.col-xs.board-element.snake-on-cell-own]
-                          (is-rest-position-other current-pos) [:div.col-xs.board-element.snake-on-cell-other]
-                          (sweets-positions current-pos) [:div.col-xs.board-element.sweet]
-                          :default [:div.col-xs.board-element.cell]))))]
-    (into [:div.container] cells)))
+(defn draw
+  [user-key]
+  (let [game-state (subscribe [:remote-game-state])
+        step (:step @game-state)]
+    (when (not (= @last-drawn-step step))
+      (q/background 30)
+      (q/fill 119 255 51)
+      (doseq [location (get-in @game-state [:sweets :locations])] (ellipse location @enlarge))
+      (doseq [[k snake] (get-in @game-state [:snakes])]
+        (if (= k user-key) (q/fill 227 11 92) (q/fill 42 171 210))
+        (draw-snake snake @enlarge)
+      (reset! last-drawn-step step)
+      ))))
+
+(defn get-canvas-size
+  []
+  (if-let [canvas-container (js/document.getElementById "canvas-container")]
+    (if-let [width (.-offsetWidth canvas-container)]
+      (let [canvas-width (- width 30)
+            canvas-heigth (* canvas-width 0.8)]
+        (reset! enlarge (/ canvas-width 50))
+        [canvas-width canvas-heigth])
+      [300 240])
+    [300 240]))
 
 (defn render-main
   "Renders the main view, either the login, or the board"
@@ -173,7 +175,7 @@
   (fn []
     (let [remote-game-state (subscribe [:remote-game-state])]
       (if-let [user-key (:user-key @game-info)]
-        (render-board user-key @remote-game-state)))))
+        [:div.container {:id "canvas-container"} [sketch-component get-canvas-size :renderer :p2d :draw #(draw user-key) :settings #(q/smooth 4)]]))))
 
 (defn view
   "The multi rendering function"

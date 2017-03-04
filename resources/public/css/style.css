@@ -38,31 +38,3 @@ body {
     top: 0;
     z-index: 2;
 }
-
-.cell {
-    background-color: rgba(0, 0, 0, 0.15);
-}
-
-.snake-on-cell-own {
-    background-color: #e30b5c;
-}
-
-.snake-on-cell-other {
-    background-color: #2aabd2;
-}
-
-.head-of-snake {
-    border-radius: 25%;
-}
-
-.sweet {
-    background-color: rgb(119, 255, 51);
-    border-radius: 100%;
-}
-
-.board-element {
-    padding-left: 2%;
-    padding-right: 0;
-    padding-top: 2%;
-    padding-bottom: 0;
-}
