@@ -4,6 +4,7 @@
   :url "http://example.com/FIXME"
 
   :dependencies [[ch.qos.logback/logback-classic "1.1.7"]
+                 [cljsjs/hammer "2.0.4-5"]
                  [com.cognitect/transit-cljs "0.8.239"]
                  [compojure "1.5.1"]
                  [cprop "0.1.9"]

@@ -1,7 +1,9 @@
 (ns utils.sketch
   (:require [cljs.core.async :as a]
+            [cljsjs.hammer]
             [goog.dom :as dom]
             [quil.core :as q :include-macros true]
+            [re-frame.core :refer [reg-event-db path dispatch]]
             [reagent.core :as r])
   (:require-macros [cljs.core.async.macros :as a]))
 
@@ -15,18 +17,20 @@
   - Creates C (rather than C having to be created separately).
   - The `:host` argument must not be provided. (Instead, a unique canvas id is
     created.)
-  - Returns a component that wraps C."
+  - Returns a component that wraps C.
+  - Adds a hammer manager to support touch events in the canvas (though there is still a bug see https://github.com/processing-js/processing-js/pull/118)"
   [size-function & {:as sketch-args}]
   (assert (not (contains? sketch-args :host))
           ":host should not be provided, because a unique canvas id will be created")
-  (let [saved-sketch-atom (atom ::not-set-yet)]
+  (let [saved-sketch-atom (atom ::not-set-yet)
+        hammer-manager (atom nil)]
     [r/create-class
      {:reagent-render
       (fn []
         [:canvas {:id "reframe-canvas"}])
       ;;
       :component-did-mount
-      (fn []
+      (fn [this]
         ;; Use a go block so that the canvas exists before we attach the sketch
         ;; to it. (Needed on initial render; not on re-render.)
         (a/go
@@ -35,11 +39,22 @@
             (reset! saved-sketch-atom
                     (apply q/sketch
                            (apply concat sketch-args*))))
-          ))
-      ;;
+
+          (let [mc (new js/Hammer.Manager (r/dom-node this))]
+            (js-invoke mc "add" (new js/Hammer.Pan #js{"direction" js/Hammer.DIRECTION_ALL "threshold" 0}))
+            (js-invoke mc "on" "pan" #(let [direction (.-direction %)]
+                                        (cond
+                                          (= direction 8) (dispatch [:change-direction [0 -1]])
+                                          (= direction 16) (dispatch [:change-direction [0 1]])
+                                          (= direction 4) (dispatch [:change-direction [1 0]])
+                                          (= direction 2) (dispatch [:change-direction [-1 0]])
+                                          )))
+            (reset! hammer-manager mc))))
       :component-will-unmount
       (fn []
         (a/go-loop []
+                   (when-let [mc @hammer-manager]
+                     (js-invoke mc "destroy"))
                    (if (= @saved-sketch-atom ::not-set-yet)
                      (do                                    ; will probably never get here
                        (a/<! (a/timeout 100))
