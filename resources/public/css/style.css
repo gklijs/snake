@@ -39,6 +39,11 @@ body {
     z-index: 2;
 }
 
+.row{
+    margin-left: 0;
+    margin-right: 0;
+}
+
 #canvas-container {
     padding-right: 0;
     padding-left: 0;
