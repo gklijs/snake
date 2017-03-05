@@ -2,14 +2,16 @@
   (:require [cognitect.transit :as t]
             [reagent.core :as reagent :refer [atom]]
             [re-frame.core :refer [subscribe dispatch]]
-            [quil.core :as q :include-macros true]
-            [utils.sketch :refer [sketch-component ellipse draw-snake]]))
+            [utils.sketch :refer [sketch-component draw-game-state]]))
 
 (defonce ws-chan-chat (atom nil))
 (defonce ws-chan-game (atom nil))
 (defonce game-info (atom {}))
 (def json-reader (t/reader :json))
 (def json-writer (t/writer :json))
+(defonce enlarge (atom 6))
+(defonce last-drawn-step (atom nil))
+(defonce show-names (atom false))
 
 (defn logjs
   "This function prints an argument to the js console"
@@ -97,6 +99,13 @@
       (update-messages! "Username should have a minimal of 8 characters"))
     ))
 
+(defn toggle-name
+  "Renders the button to switch showing the names on and off"
+  []
+  (if @show-names
+    [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! show-names false)} "Hide names"]]
+    [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! show-names true)} "Show names"]]))
+
 (defn start
   "Renders the button to start the game, after the snake has died"
   [user-key game-state]
@@ -112,6 +121,7 @@
       (if-let [user-key (:user-key @game-info)]
         [:div.container.controls [:div.d-flex.justify-content-end
                                   [:div.mr-auto.p-2 [:div.score (str "Score: " (get-in @remote-game-state [:snakes user-key :points]))]]
+                                  (toggle-name)
                                   (start user-key @remote-game-state)
                                   ]]
         [:div.flex-column
@@ -132,8 +142,6 @@
 
 
 ;; -- View Components ---------------------------------------------------------
-(defonce enlarge (atom 6))
-(defonce last-drawn-step (atom nil))
 
 (defn message-list
   "renders the list of messages"
@@ -149,20 +157,16 @@
   (let [game-state (subscribe [:remote-game-state])
         step (:step @game-state)]
     (when (not (= @last-drawn-step step))
-      (q/background 30)
-      (q/fill 119 255 51)
-      (doseq [location (get-in @game-state [:sweets :locations])] (ellipse location @enlarge))
-      (doseq [[k snake] (get-in @game-state [:snakes])]
-        (if (= k user-key) (q/fill 227 11 92) (q/fill 42 171 210))
-        (draw-snake snake @enlarge)
+      (draw-game-state @game-state user-key @show-names @enlarge)
       (reset! last-drawn-step step)
-      ))))
+      )))
 
 (defn get-canvas-size
   []
   (if-let [canvas-container (js/document.getElementById "canvas-container")]
     (if-let [width (.-offsetWidth canvas-container)]
-      (let [canvas-width (- width 30)
+      (let [excess-width (mod width 50)
+            canvas-width (- width excess-width)
             canvas-heigth (* canvas-width 0.8)]
         (reset! enlarge (/ canvas-width 50))
         [canvas-width canvas-heigth])
@@ -175,7 +179,7 @@
   (fn []
     (let [remote-game-state (subscribe [:remote-game-state])]
       (if-let [user-key (:user-key @game-info)]
-        [:div.container {:id "canvas-container"} [sketch-component get-canvas-size :renderer :p2d :draw #(draw user-key) :settings #(q/smooth 4)]]))))
+        [:div.container {:id "canvas-container"} [sketch-component get-canvas-size :renderer :p2d :draw #(draw user-key)]]))))
 
 (defn view
   "The multi rendering function"

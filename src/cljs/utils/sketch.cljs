@@ -47,27 +47,59 @@
                      (q/with-sketch @saved-sketch-atom
                                     (q/exit)))))}]))
 
-(defn ellipse
-  [[x y] factor]
+(defn- draw-sweet
+  [[x y] factor time]
   (let [x-pos (+ (* x factor) (/ factor 2))
-        y-pos (+ (* y factor) (/ factor 2))]
-    (q/ellipse x-pos y-pos factor factor)))
+        y-pos (+ (* y factor) (/ factor 2))
+        size (if (> factor 2) (* time factor) factor)]
+    (q/ellipse x-pos y-pos size size)))
 
-(defn rect
+(defn- rect
   [[x y] factor]
-  (let [x-pos  (* x factor)
+  (let [x-pos (* x factor)
         y-pos (* y factor)]
     (q/rect x-pos y-pos factor factor)))
 
-(defn draw-snake
-  [snake factor]
+(defn- draw-sweets
+  [sweets factor]
+  (q/fill 119 255 51)
+  (let [max-number (* 1.5 (:max-number sweets))
+        count (atom 0)]
+    (doseq [location (:locations sweets)]
+      (draw-sweet location factor (/ (- max-number @count) max-number))
+      (swap! count inc))))
+
+(defn- draw-snake
+  [snake name factor]
   (let [[x y] (first (:body snake))
-        direction (:direction snake)]
+        direction (:direction snake)
+        upper-left-x (* x factor)
+        upper-left-y (* y factor)
+        half-factor (/ factor 2)]
     (cond
-      (= direction [0 1]) (ellipse [x y] factor)
-      (= direction [0 -1]) (ellipse [x y] factor)
-      (= direction [-1 0]) (ellipse [x y] factor)
-      (= direction [1 0]) (ellipse [x y] factor)
-      :else (ellipse [x y] factor)))
-  (doseq [pos (rest (:body snake))]
-    (rect pos factor)))
+      (= direction [0 1]) (q/triangle upper-left-x upper-left-y (+ upper-left-x factor) upper-left-y (+ upper-left-x half-factor) (+ upper-left-y factor))
+      (= direction [0 -1]) (q/triangle upper-left-x (+ upper-left-y factor) (+ upper-left-x factor) (+ upper-left-y factor) (+ upper-left-x half-factor) upper-left-y)
+      (= direction [-1 0]) (q/triangle (+ upper-left-x factor) upper-left-y (+ upper-left-x factor) (+ upper-left-y factor) upper-left-x (+ upper-left-y half-factor))
+      (= direction [1 0]) (q/triangle upper-left-x upper-left-y upper-left-x (+ upper-left-y factor) (+ upper-left-x factor) (+ upper-left-y half-factor)))
+    (doseq [pos (rest (:body snake))]
+      (rect pos factor))
+    (when name
+      (q/fill 200 200 200)
+      (q/text name upper-left-x upper-left-y)
+      )))
+
+(defn- draw-snakes
+  [snakes own-key show-names factor]
+  (doseq [[k snake] snakes]
+    (if (= k own-key) (q/fill 227 11 92) (q/fill 42 171 210))
+    (if show-names
+      (draw-snake snake (name k) factor)
+      (draw-snake snake nil factor))
+    ))
+
+(defn draw-game-state
+  [game-state own-key show-names factor]
+  (q/background 30)
+  (q/no-stroke)
+  (draw-sweets (:sweets game-state) factor)
+  (draw-snakes (:snakes game-state) own-key show-names factor))

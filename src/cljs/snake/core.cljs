@@ -2,6 +2,7 @@
   (:require-macros [reagent.ratom :refer [reaction]])
   (:require [snake.snakepure :as snakepure]
             [snake.presentation :as presentation]
+            [snake.home :as home]
             [snake.single :as single]
             [snake.multi :as multi]
             [reagent.core :as reagent :refer [atom]]
@@ -174,6 +175,7 @@
         (= @sel-menu-item "single") [single/view]
         (= @sel-menu-item "presentation") [presentation/view]
         (= @sel-menu-item "multi") [multi/view]
+        (= @sel-menu-item "home") [home/view]
         :else [:div.container [:div.row.flex-items-xs-center [:h1 "Some day this might show " + @sel-menu-item]]])
       )))
 
