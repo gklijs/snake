@@ -1,58 +1,12 @@
 (ns snake.multi
-  (:require [cognitect.transit :as t]
-            [reagent.core :as reagent :refer [atom]]
+  (:require [reagent.core :as reagent :refer [atom]]
             [re-frame.core :refer [subscribe dispatch]]
-            [utils.sketch :refer [sketch-component draw-game-state]]))
+            [utils.sketch :refer [sketch-component draw-game-state]]
+            [utils.websockets :refer [send-transit-game! send-transit-chat!]]))
 
-(defonce ws-chan-chat (atom nil))
-(defonce ws-chan-game (atom nil))
-(defonce game-info (atom {}))
-(def json-reader (t/reader :json))
-(def json-writer (t/writer :json))
 (defonce enlarge (atom 6))
 (defonce last-drawn-step (atom nil))
 (defonce show-names (atom false))
-
-(defn logjs
-  "This function prints an argument to the js console"
-  [argument]
-  (.log js/console (clj->js argument)))
-
-(defn receive-transit-msg!
-  [update-fn]
-  (fn [msg]
-    (update-fn
-      (->> msg .-data (t/read json-reader)))))
-
-(defn send-transit-msg!
-  [msg]
-  (if @ws-chan-chat
-    (.send @ws-chan-chat (t/write json-writer msg))
-    (throw (js/Error. "Websocket is not available!"))))
-
-(defn send-transit-game!
-  [msg]
-  (if @ws-chan-game
-    (.send @ws-chan-game (t/write json-writer msg))
-    (throw (js/Error. "Websocket is not available!"))))
-
-(defn make-chat-websocket! [url receive-handler]
-  (println "attempting to connect chat websocket")
-  (if-let [chan (js/WebSocket. url)]
-    (do
-      (set! (.-onmessage chan) (receive-transit-msg! receive-handler))
-      (reset! ws-chan-chat chan)
-      (println "Chat websocket connection established with: " url))
-    (throw (js/Error. "Chat websocket connection failed!"))))
-
-(defn make-game-websocket! [url receive-handler]
-  (println "attempting to connect game websocket")
-  (if-let [chan (js/WebSocket. url)]
-    (do
-      (set! (.-onmessage chan) (receive-transit-msg! receive-handler))
-      (reset! ws-chan-game chan)
-      (println "Game websocket connection established with: " url))
-    (throw (js/Error. "Game websocket connection failed!"))))
 
 (defn message-input []
   (let [value (atom nil)]
@@ -65,26 +19,17 @@
          :on-change   #(reset! value (-> % .-target .-value))
          :on-key-down
                       #(when (= (.-keyCode %) 13)
-                         (send-transit-msg! @value)
+                         (send-transit-chat! @value)
                          (reset! value nil))}]]
       )))
-
-(defn update-messages!
-  "updates the messages"
-  [new-message]
-  (cond
-    (contains? new-message :board) (dispatch [:remote-game-state new-message])
-    (contains? new-message :user-key) (swap! game-info #(merge % new-message))
-    (string? new-message) (dispatch [:messages new-message])
-    :default (logjs new-message)
-    ))
 
 (defn send-direction
   "sends the new direction to the server, using the websocker"
   [new-direction]
-  (if-let [username (:username @game-info)]
-    (send-transit-game! {:new-direction new-direction})
-    (update-messages! "User not registered, movement will not be send")))
+  (let [game-info (subscribe [:game-info])]
+    (if-let [user-key (:user-key @game-info)]
+      (send-transit-game! {:new-direction new-direction})
+      (dispatch [:messages "User not registered, movement will not be send"]))))
 
 (defn register
   "Validates the input and dend message to server when ok"
@@ -93,10 +38,9 @@
     (if (> (count @username) 7)
       (if (> (count @password) 7)
         (let [info-map {:username @username :password @password}]
-          (send-transit-game! info-map)
-          (swap! game-info #(merge % info-map)))
-        (update-messages! "Password should have a minimal of 8 characters"))
-      (update-messages! "Username should have a minimal of 8 characters"))
+          (send-transit-game! info-map))
+        (dispatch [:messages "Password should have a minimal of 8 characters"]))
+      (dispatch [:messages "Username should have a minimal of 8 characters"]))
     ))
 
 (defn toggle-name
@@ -116,7 +60,8 @@
 (defn game-input []
   (let [username (atom nil)
         password (atom nil)
-        remote-game-state (subscribe [:remote-game-state])]
+        remote-game-state (subscribe [:remote-game-state])
+        game-info (subscribe [:game-info])]
     (fn []
       (if-let [user-key (:user-key @game-info)]
         [:div.container.controls [:div.d-flex.justify-content-end
@@ -177,7 +122,7 @@
   "Renders the main view, either the login, or the board"
   []
   (fn []
-    (let [remote-game-state (subscribe [:remote-game-state])]
+    (let [game-info (subscribe [:game-info])]
       (if-let [user-key (:user-key @game-info)]
         [:div.container {:id "canvas-container"} [sketch-component get-canvas-size :renderer :p2d :draw #(draw user-key)]]))))
 
@@ -191,7 +136,3 @@
    [:div.col-md-4
     [message-list]
     [message-input]]])
-
-(defn initsockets []
-  (make-chat-websocket! (str "ws://" (.-host js/location) "/chat") update-messages!)
-  (make-game-websocket! (str "ws://" (.-host js/location) "/game") update-messages!))

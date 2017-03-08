@@ -1,21 +1,18 @@
 (ns snake.core
   (:require-macros [reagent.ratom :refer [reaction]])
   (:require [snake.snakepure :as snakepure]
+            [utils.websockets :as websockets]
             [snake.presentation :as presentation]
             [snake.home :as home]
             [snake.single :as single]
             [snake.multi :as multi]
+            [snake.highscores :as highscores]
             [reagent.core :as reagent :refer [atom]]
             [re-frame.core :refer [reg-event-db path reg-sub subscribe dispatch dispatch-sync]]
             [goog.events :as events]
             [clojure.string :as str]))
 
 ;; -- Js functions ---------------------------------------------------------
-
-(defn logjs
-  "This function prints an argument to the js console"
-  [argument]
-  (.log js/console (clj->js argument)))
 
 (def key-code->move
   "Mapping from the integer key code to the direction vector corresponding to that key"
@@ -31,16 +28,14 @@
                             (when (contains? key-code->move key-code)
                               (dispatch [:change-direction (key-code->move key-code)]))))))
 
-(defonce snake-moving
-         (js/setInterval #(dispatch [:next-state]) 150))
-
 ;; -- Create initial values ---------------------------------------------------------
 
 (def initial-state {:local-game-state  nil
                     :sel-menu-item     "home"
                     :slide             -1
                     :messages          []
-                    :remote-game-state nil})
+                    :remote-game-state nil
+                    :game-info         {}})
 
 ;; -- Event Handlers ----------------------------------------------------------
 
@@ -73,18 +68,15 @@
 (reg-event-db
   :next-state
   (fn
-    [{:keys [local-game-state sel-menu-item] :as db} _]
-    (cond
-      (= sel-menu-item "single")
-      (if local-game-state
-        (let [next-game-state (snakepure/next-state local-game-state)]
-          (if (and (:game-running? local-game-state) (nil? (get-in next-game-state [:snakes :0])))
-            (assoc db :local-game-state (snakepure/switch-game-running next-game-state))
-            (assoc db :local-game-state next-game-state)
-            ))
-        (assoc db :local-game-state (snakepure/initial-state 5))
-        )
-      :else db)))
+    [{:keys [local-game-state] :as db} _]
+    (if local-game-state
+      (let [next-game-state (snakepure/next-state local-game-state)]
+        (if (and (:game-running? local-game-state) (nil? (get-in next-game-state [:snakes :0])))
+          (assoc db :local-game-state (snakepure/switch-game-running next-game-state))
+          (assoc db :local-game-state next-game-state)
+          ))
+      (assoc db :local-game-state (assoc (snakepure/initial-state 5) :game-running? false))
+      )))
 
 (reg-event-db
   :switch-game-running
@@ -120,6 +112,13 @@
     [messages [_ value]]
     (take 10 (conj messages value))))
 
+(reg-event-db
+  :update-game-info
+  (path [:game-info])
+  (fn
+    [game-info [_ value]]
+    (merge game-info value)))
+
 ;; -- Subscription Handlers ---------------------------------------------------
 
 (reg-sub
@@ -152,6 +151,12 @@
     [db _]
     (:remote-game-state db)))
 
+(reg-sub
+  :game-info
+  (fn
+    [db _]
+    (:game-info db)))
+
 ;; -- View Components ---------------------------------------------------------
 
 (defn switch-button
@@ -169,13 +174,14 @@
   "Selects which content to show in the app"
   []
   (let [sel-menu-item (subscribe [:sel-menu-item])]
-      (cond
-        (= @sel-menu-item "single") [single/view]
-        (= @sel-menu-item "presentation") [presentation/view]
-        (= @sel-menu-item "multi") [multi/view]
-        (= @sel-menu-item "home") [home/view]
-        :else [:div.container [:div.row.flex-items-xs-center [:h1 "Some day this might show " + @sel-menu-item]]])
-      ))
+    (cond
+      (= @sel-menu-item "single") [single/view]
+      (= @sel-menu-item "presentation") [presentation/view]
+      (= @sel-menu-item "multi") [multi/view]
+      (= @sel-menu-item "home") [home/view]
+      (= @sel-menu-item "highscores") [highscores/view]
+      :else [:div.container [:div.row.flex-items-xs-center [:h1 "Some day this might show " + @sel-menu-item]]])
+    ))
 
 (defn menu
   "The menu rendering function"
@@ -204,7 +210,7 @@
   "The main app function"
   []
   (dispatch-sync [:initialize])
-  (multi/initsockets)
+  (websockets/initsockets)
   (mount-components)
   )
 

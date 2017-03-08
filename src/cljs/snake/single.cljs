@@ -7,6 +7,7 @@
 (defonce enlarge (atom 6))
 (defonce show-names (atom false))
 (defonce last-drawn-step (atom nil))
+(defonce interval (atom nil))
 
 (defn draw
   []
@@ -52,13 +53,24 @@
        (str (if (:game-running? @local-game-state) "Pause" "Start"))
        ])))
 
+(defn update-function
+  "updated the game state, or switch off the interval when another view is loaded"
+  []
+  (let [sel-menu-item (subscribe [:sel-menu-item])]
+    (if (= @sel-menu-item "single")
+      (dispatch [:next-state])
+      (do (js/clearInterval js/window @interval) (reset! interval nil)))))
+
 (defn view
   "The game rendering function"
   []
-  [:div
-   [:div.container.controls [:div.d-flex.justify-content-end
-                             [:div.mr-auto.p-2 [score]]
-                             (toggle-name)
-                             [:div.p-2 [start-stop]]
-                             ]]
-   [:div.container {:id "canvas-container"} [sketch-component get-canvas-size :renderer :p2d :draw draw]]])
+  (do
+    (if (nil? @interval)
+      (reset! interval (js/setInterval #(update-function) 150)))
+    [:div
+     [:div.container.controls [:div.d-flex.justify-content-end
+                               [:div.mr-auto.p-2 [score]]
+                               (toggle-name)
+                               [:div.p-2 [start-stop]]
+                               ]]
+     [:div.container {:id "canvas-container"} [sketch-component get-canvas-size :renderer :p2d :draw draw]]]))

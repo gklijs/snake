@@ -9,9 +9,10 @@
 (def my-pool (mk-pool))
 (defonce channels (atom {}))
 (defonce userinfo (atom {}))
+(defonce highscores (atom {}))
 (defonce unique-key-user-key (atom {}))
 (defonce key-counter (atom 0))
-(defonce game-state (atom (snakepure/initial-state 5)))
+(defonce game-state (atom (snakepure/initial-state 0)))
 (defonce update-job (atom nil))
 
 (defn readjson [data]
@@ -33,14 +34,33 @@
   []
   (keyword (str (swap! key-counter inc))))
 
+(defn update-score
+  [{:keys [highest games-played average] :as score} points]
+  (let [new-highest (max highest points)
+        new-games-played (inc games-played)
+        new-average (/ (+ points (* average games-played)) new-games-played)
+        new-float-average (float new-average)]
+    {:highest new-highest :games-played new-games-played :average new-average :average-float new-float-average}))
+
+(defn save-score
+  "Saves the score to be able to tell the highscores"
+  [user-key points]
+  (if (contains? @highscores user-key)
+    (swap! highscores #(update % user-key update-score points))
+    (swap! highscores #(assoc % user-key {:highest points :games-played 1 :average points :average-float (float points)}))
+    ))
+
 (defn send-next-game-state
-  "send the next game state to all living snakes in the current game state"
+  "Send the next game state to all living snakes in the current game state."
   []
   (let [current-snakes (:snakes @game-state)
-        next-game-sate (swap! game-state snakepure/next-state)]
+        next-game-state (swap! game-state snakepure/next-state)]
     (doseq [[k v] @channels]
       (if (contains? current-snakes (get-in @unique-key-user-key [k :user-key]))
-        (send! v (writejson next-game-sate))))))
+        (send! v (writejson next-game-state))))
+    (doseq [[k snake] current-snakes]
+      (if (nil? (get-in next-game-state [:snakes k]))
+        (save-score k (:points snake))))))
 
 (defn connect! [channel unique-key]
   (swap! channels assoc unique-key channel))
@@ -98,9 +118,10 @@
   (let [game-input (readjson msg)]
     (if-let [channel (get @channels unique-key)]
       (cond
-        (contains? game-input :username) (register-user channel unique-key (keyword (clojure.string/lower-case (:username game-input))) (:password game-input))
+        (contains? game-input :username) (register-user channel unique-key (keyword (:username game-input)) (:password game-input))
         (contains? game-input :new-direction) (swap! game-state #(move-snake-user (:new-direction game-input) unique-key %))
         (contains? game-input :start) (swap! game-state #(add-snake-user unique-key %))
+        (contains? game-input :highscores) (send! channel (writejson {:highscores @highscores}))
         :else (send! channel (writejson "Could not handle data."))))))
 
 (defn ws-handler [request]
