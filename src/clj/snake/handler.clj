@@ -2,7 +2,6 @@
   (:require [compojure.core :refer [routes wrap-routes]]
             [snake.layout :refer [error-page]]
             [snake.routes.home :refer [home-routes]]
-            [snake.routes.chatsocket :refer [chatsocket-routes]]
             [snake.routes.gamesocket :refer [gamesocket-routes]]
             [compojure.route :as route]
             [snake.env :refer [defaults]]
@@ -16,8 +15,6 @@
 (def app-routes
   (routes
     (-> #'home-routes
-        (wrap-routes middleware/wrap-csrf))
-    (-> #'chatsocket-routes
         (wrap-routes middleware/wrap-csrf))
     (-> #'gamesocket-routes
         (wrap-routes middleware/wrap-csrf))

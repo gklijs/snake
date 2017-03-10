@@ -4,7 +4,7 @@
             [goog.string :as gstring]
             [goog.string.format]
             [utils.sketch :refer [sketch-component draw-game-state]]
-            [utils.websockets :refer [send-transit-game!]]))
+            [utils.websocket :refer [send-transit-game!]]))
 
 ;; -- View Components ---------------------------------------------------------
 (defonce sort-value (atom (keyword "name")))

@@ -3,6 +3,7 @@
             [org.httpkit.server :refer [send! with-channel on-close on-receive]]
             [cognitect.transit :as t]
             [snake.snakepure :as snakepure]
+            [snake.validation :refer [valid-registration-map?]]
             [overtone.at-at :refer [every stop-and-reset-pool! mk-pool]])
   (:import (java.io ByteArrayOutputStream ByteArrayInputStream)))
 
@@ -74,20 +75,25 @@
 
 (defn register-user
   "registeres the user"
-  [channel unique-key user-key password]
-  (letfn [(register [] (let [key-map {:user-key user-key}]
-                         (swap! userinfo assoc-in [user-key :password] password)
-                         (swap! unique-key-user-key assoc unique-key key-map)
-                         (send! channel (writejson key-map))
-                         (send! channel (writejson (str "Succesfully registered with unique key: " (name unique-key))))
-                         (if (nil? @update-job) (reset! update-job (every 150 #(send-next-game-state) my-pool)))
-                         ))]
-    (if-let [thisuserinfo (get @userinfo user-key)]
-      (if
-        (= password (get thisuserinfo :password))
-        (register)
-        (send! channel (writejson "Username already exists with other password")))
-      (register))))
+  [channel unique-key registration-map]
+  (let [validation (valid-registration-map? registration-map)]
+    (if (first validation)
+      (let [user-key (keyword (:username registration-map))
+            password (:password registration-map)]
+        (letfn [(register [] (let [key-map {:user-key user-key}]
+                               (swap! userinfo assoc-in [user-key :password] password)
+                               (swap! unique-key-user-key assoc unique-key key-map)
+                               (send! channel (writejson key-map))
+                               (send! channel (writejson (str "server: Succesfully registered with unique key: " (name unique-key))))
+                               (if (nil? @update-job) (reset! update-job (every 150 #(send-next-game-state) my-pool)))
+                               ))]
+          (if-let [thisuserinfo (get @userinfo user-key)]
+            (if
+              (= password (get thisuserinfo :password))
+              (register)
+              (send! channel (writejson "server: Username already exists with other password")))
+            (register))))
+      (send! channel (writejson (str "server: error in registration-map: " (second validation)))))))
 
 (defn move-snake-user
   "If a valid move, updates the game state"
@@ -112,17 +118,29 @@
     game-state
     ))
 
+(defn handle-string-message
+  [string-message unique-key]
+  (let [user-key (get-in @unique-key-user-key [unique-key :user-key])
+        user-string (if user-key (name user-key) "anonymous")]
+    (doseq [[k channel] @channels] (send! channel (writejson (str user-string ": " string-message))))))
+
+(defn handle-map-message
+  [map-message unique-key]
+  (if-let [channel (get @channels unique-key)]
+    (cond
+      (contains? map-message :username) (register-user channel unique-key map-message)
+      (contains? map-message :new-direction) (swap! game-state #(move-snake-user (:new-direction map-message) unique-key %))
+      (contains? map-message :start) (swap! game-state #(add-snake-user unique-key %))
+      (contains? map-message :highscores) (send! channel (writejson {:highscores @highscores}))
+      :else (send! channel (writejson "server: Could not handle map data.")))))
+
 (defn handle-message
   "Does the message handling"
   [msg unique-key]
-  (let [game-input (readjson msg)]
-    (if-let [channel (get @channels unique-key)]
-      (cond
-        (contains? game-input :username) (register-user channel unique-key (keyword (:username game-input)) (:password game-input))
-        (contains? game-input :new-direction) (swap! game-state #(move-snake-user (:new-direction game-input) unique-key %))
-        (contains? game-input :start) (swap! game-state #(add-snake-user unique-key %))
-        (contains? game-input :highscores) (send! channel (writejson {:highscores @highscores}))
-        :else (send! channel (writejson "Could not handle data."))))))
+  (if-let [game-input (readjson msg)]
+    (cond
+      (string? game-input) (handle-string-message game-input unique-key)
+      (map? game-input) (handle-map-message game-input unique-key))))
 
 (defn ws-handler [request]
   (with-channel request channel

@@ -1,8 +1,9 @@
 (ns snake.multi
   (:require [reagent.core :as reagent :refer [atom]]
             [re-frame.core :refer [subscribe dispatch]]
+            [snake.validation :refer [valid-registration-map?]]
             [utils.sketch :refer [sketch-component draw-game-state]]
-            [utils.websockets :refer [send-transit-game! send-transit-chat!]]))
+            [utils.websocket :refer [send-transit-game!]]))
 
 (defonce enlarge (atom 6))
 (defonce last-drawn-step (atom nil))
@@ -19,7 +20,7 @@
          :on-change   #(reset! value (-> % .-target .-value))
          :on-key-down
                       #(when (= (.-keyCode %) 13)
-                         (send-transit-chat! @value)
+                         (send-transit-game! @value)
                          (reset! value nil))}]]
       )))
 
@@ -35,13 +36,11 @@
   "Validates the input and dend message to server when ok"
   [key username password]
   (if (= (.-keyCode key) 13)
-    (if (> (count @username) 7)
-      (if (> (count @password) 7)
-        (let [info-map {:username @username :password @password}]
-          (send-transit-game! info-map))
-        (dispatch [:messages "Password should have a minimal of 8 characters"]))
-      (dispatch [:messages "Username should have a minimal of 8 characters"]))
-    ))
+    (let [registration-map {:username @username :password @password}
+          validation (valid-registration-map? registration-map)]
+      (if (first validation)
+        (send-transit-game! registration-map)
+        (dispatch [:messages (str "error: " (second validation))])))))
 
 (defn toggle-name
   "Renders the button to switch showing the names on and off"

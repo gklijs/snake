@@ -1,7 +1,7 @@
 (ns snake.core
   (:require-macros [reagent.ratom :refer [reaction]])
   (:require [snake.snakepure :as snakepure]
-            [utils.websockets :as websockets]
+            [utils.websocket :as websocket]
             [snake.presentation :as presentation]
             [snake.home :as home]
             [snake.single :as single]
@@ -210,7 +210,7 @@
   "The main app function"
   []
   (dispatch-sync [:initialize])
-  (websockets/initsockets)
+  (websocket/initsocket)
   (mount-components)
   )
 
