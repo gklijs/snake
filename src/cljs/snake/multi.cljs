@@ -5,9 +5,9 @@
             [utils.sketch :refer [sketch-component draw-game-state]]
             [utils.websocket :refer [send-transit-game!]]))
 
-(defonce enlarge (atom 6))
 (defonce last-drawn-step (atom nil))
 (defonce show-names (atom false))
+(defonce show-scores (atom false))
 
 (defn message-input []
   (let [value (atom nil)]
@@ -49,6 +49,13 @@
     [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! show-names false)} "Hide names"]]
     [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! show-names true)} "Show names"]]))
 
+(defn toggle-score
+  "Renders the button to switch showing the names on and off"
+  []
+  (if @show-scores
+    [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! show-scores false)} "Hide scores"]]
+    [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! show-scores true)} "Show scores"]]))
+
 (defn start
   "Renders the button to start the game, after the snake has died"
   [user-key game-state]
@@ -65,6 +72,7 @@
       (if-let [user-key (:user-key @game-info)]
         [:div.container.controls [:div.d-flex.justify-content-end
                                   [:div.mr-auto.p-2 [:div.score (str "Score: " (get-in @remote-game-state [:snakes user-key :points]))]]
+                                  (toggle-score)
                                   (toggle-name)
                                   (start user-key @remote-game-state)
                                   ]]
@@ -97,25 +105,13 @@
        [:li message])]))
 
 (defn draw
-  [user-key]
+  [user-key factor]
   (let [game-state (subscribe [:remote-game-state])
         step (:step @game-state)]
     (when (not (= @last-drawn-step step))
-      (draw-game-state @game-state user-key @show-names @enlarge)
+      (draw-game-state @game-state user-key @show-names @show-scores factor)
       (reset! last-drawn-step step)
       )))
-
-(defn get-canvas-size
-  []
-  (if-let [canvas-container (js/document.getElementById "canvas-container")]
-    (if-let [width (.-offsetWidth canvas-container)]
-      (let [excess-width (mod width 50)
-            canvas-width (- width excess-width)
-            canvas-heigth (* canvas-width 0.8)]
-        (reset! enlarge (/ canvas-width 50))
-        [canvas-width canvas-heigth])
-      [300 240])
-    [300 240]))
 
 (defn render-main
   "Renders the main view, either the login, or the board"
@@ -123,7 +119,7 @@
   (fn []
     (let [game-info (subscribe [:game-info])]
       (if-let [user-key (:user-key @game-info)]
-        [:div.container {:id "canvas-container"} [sketch-component get-canvas-size :renderer :p2d :draw #(draw user-key)]]))))
+        [sketch-component (partial draw user-key)]))))
 
 (defn view
   "The multi rendering function"

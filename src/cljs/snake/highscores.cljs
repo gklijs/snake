@@ -7,7 +7,7 @@
             [utils.websocket :refer [send-transit-game!]]))
 
 ;; -- View Components ---------------------------------------------------------
-(defonce sort-value (atom (keyword "name")))
+(defonce sort-value (atom [:name nil]))
 (defonce interval (atom nil))
 
 (defn update-function
@@ -25,7 +25,8 @@
     (if-let [highscores (:highscores @game-info)]
       (let [unsorted-map (atom ())
             _ (doseq [[k scoremap] highscores] (swap! unsorted-map conj (assoc scoremap :name (name k))))
-            sorted-map (sort-by @sort-value @unsorted-map)]
+            [key operator] @sort-value
+            sorted-map (if operator (sort-by key operator @unsorted-map) (sort-by key @unsorted-map))]
         [:table.table.table-hover.table-striped.table-bordered
          [:thead>tr
           [:th "Name"]
@@ -51,9 +52,9 @@
     [:div
      [:div.container.controls [:div.d-flex.justify-content-end
                                [:div.mr-auto.p-2 [:div (str "Sort by: ")]]
-                               [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! sort-value (keyword "name"))} "Name"]]
-                               [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! sort-value (keyword "highest"))} "Highest"]]
-                               [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! sort-value (keyword "games-played"))} "Games played"]]
-                               [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! sort-value (keyword "average-float"))} "Average"]]
+                               [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! sort-value [:name nil])} "Name"]]
+                               [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! sort-value [:highest >])} "Highest"]]
+                               [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! sort-value [:games-played >])} "Games played"]]
+                               [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! sort-value [:average-float >])} "Average"]]
                                ]]
      [:div.container (highscore-table)]]))
