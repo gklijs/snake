@@ -38,7 +38,7 @@
   [new-message]
   (cond
     (string? new-message) (dispatch [:messages new-message])
-    (contains? new-message :board) (dispatch [:remote-game-state new-message])
+    (contains? new-message :step) (dispatch [:remote-game-state new-message])
     (contains? new-message :user-key) (dispatch [:update-game-info new-message])
     (contains? new-message :highscores) (dispatch [:update-game-info new-message])
     :default (logjs new-message)

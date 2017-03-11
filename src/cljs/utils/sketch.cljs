@@ -7,11 +7,6 @@
             [reagent.core :as r])
   (:require-macros [cljs.core.async.macros :as a]))
 
-(defn logjs
-  "This function prints an argument to the js console"
-  [argument]
-  (.log js/console (clj->js argument)))
-
 (defn- get-canvas-size
   []
   (if-let [canvas-container (js/document.getElementById "canvas-container")]
@@ -50,7 +45,6 @@
         ;; to it. (Needed on initial render; not on re-render.)
         (a/go
           (let [canvas-size (get-canvas-size)
-                _ (logjs (second canvas-size))
                 sketch-args* {:host "reframe-canvas"
                               :size (first canvas-size)
                               :draw #(draw-function (second canvas-size))}]

@@ -1,23 +1,26 @@
 (ns snake.snakepure)
 
+(defonce valid-directions [[0 1] [0 -1] [-1 0] [1 0]])
+(defonce board-size [50 40])
+
 (defn valid-head
   "Change the value of the head if it may run out of the board"
-  [head board]
+  [head]
   (cond
-    (= (first head) -1) [(- (first board) 1) (second head)]
-    (= (first head) (first board)) [0 (second head)]
-    (= (second head) -1) [(first head) (- (second board) 1)]
-    (= (second head) (second board)) [(first head) 0]
+    (= (first head) -1) [(- (first board-size) 1) (second head)]
+    (= (first head) (first board-size)) [0 (second head)]
+    (= (second head) -1) [(first head) (- (second board-size) 1)]
+    (= (second head) (second board-size)) [(first head) 0]
     :else head))
 
 (defn rand-free-position
   "This function takes the snake, locations of the sweets and the board-size as arguments, and
   returns a random position not colliding with the snake body or sweets"
-  [snakes locations [x y]]
+  [snakes locations]
   (let [positions-set (atom locations)
         update-positions-set (doseq [[k v] snakes] (swap! positions-set #(into % (:body v))))
-        board-positions (for [x-pos (range x)
-                              y-pos (range y)]
+        board-positions (for [x-pos (range (first board-size))
+                              y-pos (range (second board-size))]
                           [x-pos y-pos])
         free-position? (atom (rand-nth board-positions))]
     (while (some #(= @free-position? %) @positions-set) (reset! free-position? (rand-nth board-positions)))
@@ -34,9 +37,8 @@
 (defn rand-snake
   "this function creates a new random snake, based only on the board"
   [[x y]]
-  (let [valid-directons [[0 1] [0 -1] [-1 0] [1 0]]
-        start-position [[(+ 5 (rand-int (- x 10))) (+ 5 (rand-int (- y 10)))]]
-        direction (rand-nth valid-directons)]
+  (let [start-position [[(+ 5 (rand-int (- x 10))) (+ 5 (rand-int (- y 10)))]]
+        direction (rand-nth valid-directions)]
     {
      :direction        direction
      :body             (conj start-position
@@ -50,8 +52,8 @@
 
 (defn move-snake
   "Move the whole snake positions and directions of all snake elements"
-  [{:keys [direction body] :as snake} board]
-  (let [head-new-position (valid-head (mapv + direction (first body)) board)]
+  [{:keys [direction body] :as snake}]
+  (let [head-new-position (valid-head (mapv + direction (first body)))]
     (assoc snake :body (drop-last (cons head-new-position body)))))
 
 (defn add-points-for-killing
@@ -101,10 +103,10 @@
 
 (defn handle-sweets
   "Adds new sweet if there are less sweets than the max number, removes the oldest one otherwhise"
-  [{:keys [max-number locations] :as sweets} snakes board step]
+  [{:keys [max-number locations] :as sweets} snakes step]
   (if (= 0 (mod step 5))
     (if (> max-number (count locations))
-      (assoc sweets :locations (conj locations (rand-free-position snakes locations board)))
+      (assoc sweets :locations (conj locations (rand-free-position snakes locations)))
       (assoc sweets :locations (drop-last locations)))
     sweets))
 
@@ -118,30 +120,31 @@
 
 (defn next-state
   "Gives the next state of the game-state"
-  [{:keys [snakes game-running? board sweets step] :as game-state}]
+  [{:keys [snakes game-running? sweets step] :as game-state}]
   (if (true? game-running?)
     (if (empty? snakes)
       game-state
       (let [new-snakes (atom snakes)]
         (doseq [[k v] @new-snakes] (swap! new-snakes #(update % k pop-stored-direction)))
-        (doseq [[k v] @new-snakes] (swap! new-snakes #(assoc % k (move-snake v board))))
+        (doseq [[k v] @new-snakes] (swap! new-snakes #(assoc % k (move-snake v))))
         (-> game-state
             (assoc :snakes (handle-collisions @new-snakes))
             (feed-snakes)
-            (update :sweets handle-sweets @new-snakes board step)
+            (update :sweets handle-sweets @new-snakes step)
             (update :step inc))))
     game-state))
 
+(defn add-snake
+  [m intorkey]
+  (let [key (if (number? intorkey) (keyword (str intorkey)) intorkey)]
+    (assoc m key (rand-snake board-size))))
+
 (defn switch-game-running
   "Pause or un-pause to game, only to be used locally"
-  [{:keys [snakes game-running? board] :as game-state}]
+  [{:keys [snakes game-running?] :as game-state}]
   (if (and (false? game-running?) (empty? (:0 snakes)))
     (-> game-state
-        (assoc-in [:snakes :0] (rand-snake board))
-        (assoc-in [:snakes :1] (rand-snake board))
-        (assoc-in [:snakes :2] (rand-snake board))
-        (assoc-in [:snakes :3] (rand-snake board))
-        (assoc-in [:snakes :4] (rand-snake board))
+        (assoc :snakes (reduce add-snake {} (range 5)))
         (assoc :game-running? true))
     (assoc-in game-state [:game-running?] (not game-running?))))
 
@@ -156,14 +159,10 @@
 (defn initial-state
   "Gives the initial game state"
   [number-of-snakes]
-  (let [board [50 40]
-        snakes (atom {})]
-    (dotimes [n number-of-snakes] (reset! snakes (assoc-in @snakes [(keyword (str n))] (rand-snake board))))
-    {
-     :board         board
-     :snakes        @snakes
-     :sweets        {:max-number 20
-                     :locations  []}
-     :game-running? true
-     :step          0
-     }))
+  {
+   :snakes        (reduce add-snake {} (range number-of-snakes))
+   :sweets        {:max-number 20
+                   :locations  []}
+   :game-running? true
+   :step          0
+   })

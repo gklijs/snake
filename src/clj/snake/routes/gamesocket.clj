@@ -113,7 +113,7 @@
   (if-let [user-key (get-in @unique-key-user-key [unique-key :user-key])]
     (if-not
       (get-in game-state [:snakes user-key])
-      (assoc-in game-state [:snakes user-key] (snakepure/rand-snake (:board game-state)))
+      (update game-state :snakes #(snakepure/add-snake % user-key))
       game-state)
     game-state
     ))
