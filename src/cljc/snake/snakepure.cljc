@@ -1,6 +1,6 @@
 (ns snake.snakepure)
 
-(defonce valid-directions [[0 1] [0 -1] [-1 0] [1 0]])
+(defonce valid-directions #{[0 1] [0 -1] [-1 0] [1 0]})
 (defonce board-size [50 40])
 
 (defn valid-head
@@ -36,9 +36,10 @@
 
 (defn rand-snake
   "this function creates a new random snake, based only on the board"
-  [[x y]]
-  (let [start-position [[(+ 5 (rand-int (- x 10))) (+ 5 (rand-int (- y 10)))]]
-        direction (rand-nth valid-directions)]
+  []
+  (let [[x y] board-size
+        start-position [[(+ 5 (rand-int (- x 10))) (+ 5 (rand-int (- y 10)))]]
+        direction (rand-nth (vec valid-directions))]
     {
      :direction        direction
      :body             (conj start-position
@@ -137,7 +138,7 @@
 (defn add-snake
   [m intorkey]
   (let [key (if (number? intorkey) (keyword (str intorkey)) intorkey)]
-    (assoc m key (rand-snake board-size))))
+    (assoc m key rand-snake)))
 
 (defn switch-game-running
   "Pause or un-pause to game, only to be used locally"

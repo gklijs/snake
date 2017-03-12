@@ -16,23 +16,26 @@
   (let [sel-menu-item (subscribe [:sel-menu-item])]
     (if (= @sel-menu-item "highscores")
       (send-transit-game! {:highscores true})
-      (do (js/clearInterval js/window @interval) (reset! interval nil)))))
+      (do (js/clearInterval @interval) (reset! interval nil)))))
+
+(defn add-row
+  [m k v]
+  (conj m (assoc v :name (name k))))
 
 (defn highscore-table
   "Renders the table of the highscores"
   []
   (let [game-info (subscribe [:game-info])]
     (if-let [highscores (:highscores @game-info)]
-      (let [unsorted-map (atom ())
-            _ (doseq [[k scoremap] highscores] (swap! unsorted-map conj (assoc scoremap :name (name k))))
-            [key operator] @sort-value
-            sorted-map (if operator (sort-by key operator @unsorted-map) (sort-by key @unsorted-map))]
+      (let [[key operator] @sort-value
+            unsorted-map (reduce-kv add-row `() highscores)
+            sorted-map (if operator (sort-by key operator unsorted-map) (sort-by key unsorted-map))]
         [:table.table.table-hover.table-striped.table-bordered
          [:thead>tr
-          [:th "Name"]
-          [:th "Highest"]
-          [:th "Games played"]
-          [:th "Average"]
+          [:th {:on-click #(reset! sort-value [:name nil])} "Name"]
+          [:th {:on-click #(reset! sort-value [:highest >])} "Highest"]
+          [:th {:on-click #(reset! sort-value [:games-played >])} "Games played"]
+          [:th {:on-click #(reset! sort-value [:average-float >])} "Average"]
           ]
          [:tbody
           (for [item sorted-map]
@@ -50,11 +53,4 @@
     (if (nil? @interval)
       (reset! interval (js/setInterval #(update-function) 1000)))
     [:div
-     [:div.container.controls [:div.d-flex.justify-content-end
-                               [:div.mr-auto.p-2 [:div (str "Sort by: ")]]
-                               [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! sort-value [:name nil])} "Name"]]
-                               [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! sort-value [:highest >])} "Highest"]]
-                               [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! sort-value [:games-played >])} "Games played"]]
-                               [:div.p-2 [:button.btn.btn-secondary {:type "button" :on-click #(reset! sort-value [:average-float >])} "Average"]]
-                               ]]
      [:div.container (highscore-table)]]))

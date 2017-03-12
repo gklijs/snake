@@ -54,7 +54,7 @@
   (let [sel-menu-item (subscribe [:sel-menu-item])]
     (if (= @sel-menu-item "single")
       (dispatch [:next-state])
-      (do (js/clearInterval js/window @interval) (reset! interval nil)))))
+      (do (js/clearInterval @interval) (reset! interval nil)))))
 
 (defn view
   "The game rendering function"

@@ -3,7 +3,7 @@
             [org.httpkit.server :refer [send! with-channel on-close on-receive]]
             [cognitect.transit :as t]
             [snake.snakepure :as snakepure]
-            [snake.validation :refer [valid-registration-map?]]
+            [snake.validation :refer [valid-registration-map? valid-new-direction-map?]]
             [overtone.at-at :refer [every stop-and-reset-pool! mk-pool]])
   (:import (java.io ByteArrayOutputStream ByteArrayInputStream)))
 
@@ -95,17 +95,21 @@
             (register))))
       (send! channel (writejson (str "server: error in registration-map: " (second validation)))))))
 
-(defn move-snake-user
+(defn store-move-snake
+  [game-state user-key new-direction]
+  (if-let [new-snake (snakepure/change-direction (get-in game-state [:snakes user-key]) new-direction)]
+    (assoc-in game-state [:snakes user-key] new-snake)
+    game-state))
+
+(defn move-snake
   "If a valid move, updates the game state"
-  [new-direction unique-key game-state]
-  (if-let [user-key (get-in @unique-key-user-key [unique-key :user-key])]
-    (if-let [current-snake (get-in game-state [:snakes user-key])]
-      (if-let [new-snake (snakepure/change-direction current-snake new-direction)]
-        (assoc-in game-state [:snakes user-key] new-snake)
-        game-state)
-      game-state)
-    game-state
-    ))
+  [channel unique-key direction-map]
+  (let [validation (valid-new-direction-map? direction-map)]
+    (if (first validation)
+      (if-let [user-key (get-in @unique-key-user-key [unique-key :user-key])]
+        (if-let [current-snake (get-in @game-state [:snakes user-key])]
+          (swap! game-state store-move-snake user-key (:new-direction direction-map))))
+      (send! channel (writejson (str "server: error in registration-map: " (second validation)))))))
 
 (defn add-snake-user
   "If user currently has no snake, updates the game state with the new snake"
@@ -115,8 +119,7 @@
       (get-in game-state [:snakes user-key])
       (update game-state :snakes #(snakepure/add-snake % user-key))
       game-state)
-    game-state
-    ))
+    game-state))
 
 (defn handle-string-message
   [string-message unique-key]
@@ -129,7 +132,7 @@
   (if-let [channel (get @channels unique-key)]
     (cond
       (contains? map-message :username) (register-user channel unique-key map-message)
-      (contains? map-message :new-direction) (swap! game-state #(move-snake-user (:new-direction map-message) unique-key %))
+      (contains? map-message :new-direction) (move-snake channel unique-key map-message)
       (contains? map-message :start) (swap! game-state #(add-snake-user unique-key %))
       (contains? map-message :highscores) (send! channel (writejson {:highscores @highscores}))
       :else (send! channel (writejson "server: Could not handle map data.")))))

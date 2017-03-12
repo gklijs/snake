@@ -4,19 +4,21 @@
             [goog.dom :as dom]
             [quil.core :as q :include-macros true]
             [re-frame.core :refer [reg-event-db path dispatch]]
-            [reagent.core :as r])
+            [reagent.core :as r]
+            [snake.snakepure :refer [board-size]])
   (:require-macros [cljs.core.async.macros :as a]))
 
 (defn- get-canvas-size
   []
   (if-let [canvas-container (js/document.getElementById "canvas-container")]
-    (if-let [width (.-offsetWidth canvas-container)]
-      (let [excess-width (mod width 50)
-            canvas-width (- width excess-width)
-            canvas-heigth (* canvas-width 0.8)
-            factor (/ canvas-width 50)]
-        [[canvas-width canvas-heigth] factor])
-      [[300 240] 6])
+    (let [[x y] board-size
+          width (.-offsetWidth canvas-container)
+          excess-width (mod width x)
+          canvas-width (- width excess-width)
+          factor (/ canvas-width x)
+          canvas-heigth (* y factor)]
+      [[canvas-width canvas-heigth] factor]
+      )
     [[300 240] 6]))
 
 (defn sketch-component

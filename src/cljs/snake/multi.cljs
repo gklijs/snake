@@ -1,7 +1,7 @@
 (ns snake.multi
   (:require [reagent.core :as reagent :refer [atom]]
             [re-frame.core :refer [subscribe dispatch]]
-            [snake.validation :refer [valid-registration-map?]]
+            [snake.validation :refer [valid-registration-map? valid-new-direction-map?]]
             [utils.sketch :refer [sketch-component draw-game-state]]
             [utils.websocket :refer [send-transit-game!]]))
 
@@ -29,7 +29,11 @@
   [new-direction]
   (let [game-info (subscribe [:game-info])]
     (if-let [user-key (:user-key @game-info)]
-      (send-transit-game! {:new-direction new-direction})
+      (let [direction-map {:new-direction new-direction}
+            validation (valid-new-direction-map? direction-map)]
+        (if (first validation)
+          (send-transit-game! {:new-direction new-direction})
+          (dispatch [:messages (str "error: " (second validation))])))
       (dispatch [:messages "User not registered, movement will not be send"]))))
 
 (defn register
