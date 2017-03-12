@@ -3,15 +3,14 @@
 (defonce valid-directions #{[0 1] [0 -1] [-1 0] [1 0]})
 (defonce board-size [50 40])
 
-(defn valid-head
-  "Change the value of the head if it may run out of the board"
-  [head]
-  (cond
-    (= (first head) -1) [(- (first board-size) 1) (second head)]
-    (= (first head) (first board-size)) [0 (second head)]
-    (= (second head) -1) [(first head) (- (second board-size) 1)]
-    (= (second head) (second board-size)) [(first head) 0]
-    :else head))
+(defn valid-cord
+  "Change the value of a coordinate to a valid one"
+  [cord]
+  (let [[max-x max-y] board-size
+        [input-x input-y] cord
+        valid-x (mod input-x max-x)
+        valid-y (mod input-y max-y)]
+    [valid-x valid-y]))
 
 (defn rand-free-position
   "This function takes the snake, locations of the sweets and the board-size as arguments, and
@@ -54,7 +53,7 @@
 (defn move-snake
   "Move the whole snake positions and directions of all snake elements"
   [{:keys [direction body] :as snake}]
-  (let [head-new-position (valid-head (mapv + direction (first body)))]
+  (let [head-new-position (valid-cord (mapv + direction (first body)))]
     (assoc snake :body (drop-last (cons head-new-position body)))))
 
 (defn add-points-for-killing
@@ -138,7 +137,7 @@
 (defn add-snake
   [m intorkey]
   (let [key (if (number? intorkey) (keyword (str intorkey)) intorkey)]
-    (assoc m key rand-snake)))
+    (assoc m key (rand-snake))))
 
 (defn switch-game-running
   "Pause or un-pause to game, only to be used locally"

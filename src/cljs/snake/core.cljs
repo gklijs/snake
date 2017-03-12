@@ -78,10 +78,16 @@
       (assoc db :local-game-state (assoc (snakepure/initial-state 5) :game-running? false))
       )))
 
+(defn logjs
+  "This function prints an argument to the js console"
+  [argument]
+  (.log js/console (clj->js argument)))
+
 (reg-event-db
   :switch-game-running
   (fn
     [{:keys [local-game-state] :as db} _]
+    (logjs db)
     (assoc db :local-game-state (snakepure/switch-game-running local-game-state))))
 
 (reg-event-db
