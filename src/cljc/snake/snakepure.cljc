@@ -12,17 +12,20 @@
         valid-y (mod input-y max-y)]
     [valid-x valid-y]))
 
+(defn add-snake-body
+  [col snake]
+  (into col (:body snake)))
+
 (defn rand-free-position
   "This function takes the snake, locations of the sweets and the board-size as arguments, and
   returns a random position not colliding with the snake body or sweets"
   [snakes locations]
-  (let [positions-set (atom locations)
-        update-positions-set (doseq [[k v] snakes] (swap! positions-set #(into % (:body v))))
+  (let [positions-set (reduce add-snake-body (into #{} locations) snakes)
         board-positions (for [x-pos (range (first board-size))
                               y-pos (range (second board-size))]
                           [x-pos y-pos])
         free-position? (atom (rand-nth board-positions))]
-    (while (some #(= @free-position? %) @positions-set) (reset! free-position? (rand-nth board-positions)))
+    (while (contains? @free-position? positions-set) (reset! free-position? (rand-nth board-positions)))
     @free-position?))
 
 (defn grow-snake

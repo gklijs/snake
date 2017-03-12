@@ -85,6 +85,7 @@
                                (swap! unique-key-user-key assoc unique-key key-map)
                                (send! channel (writejson key-map))
                                (send! channel (writejson (str "server: Succesfully registered with unique key: " (name unique-key))))
+                               (send! channel (writejson @game-state))
                                (if (nil? @update-job) (reset! update-job (every 150 #(send-next-game-state) my-pool)))
                                ))]
           (if-let [thisuserinfo (get @userinfo user-key)]

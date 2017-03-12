@@ -43,7 +43,10 @@
     (let [registration-map {:username @username :password @password}
           validation (valid-registration-map? registration-map)]
       (if (first validation)
-        (send-transit-game! registration-map)
+        (do
+          (dispatch [:update-game-info {:registration-map registration-map}])
+          (send-transit-game! registration-map)
+          )
         (dispatch [:messages (str "error: " (second validation))])))))
 
 (defn toggle-name
