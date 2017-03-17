@@ -1,6 +1,7 @@
 (ns snake.core
   (:require-macros [reagent.ratom :refer [reaction]])
-  (:require [snake.snakepure :as snakepure]
+  (:require [snake.ai :refer [predict-next-best-move]]
+            [snake.snakepure :as snakepure]
             [snake.presentation :as presentation]
             [snake.home :as home]
             [snake.single :as single]
@@ -64,6 +65,16 @@
       )
     ))
 
+(defn set-ai
+  "Will probably be moved elsewhere, but for now sets the the next moves for the snakes"
+  [game-state]
+  (let [result (atom game-state)]
+    (doseq [[k v] (:snakes game-state)]
+      (if
+        (not (= :0 k))
+        (swap! result #(assoc-in % [:snakes k :stored-direction] (predict-next-best-move game-state k 10)))))
+    @result))
+
 (reg-event-db
   :next-state
   (fn
@@ -71,8 +82,8 @@
     (if local-game-state
       (let [next-game-state (snakepure/next-state local-game-state)]
         (if (and (:game-running? local-game-state) (nil? (get-in next-game-state [:snakes :0])))
-          (assoc db :local-game-state (snakepure/switch-game-running next-game-state))
-          (assoc db :local-game-state next-game-state)
+          (assoc db :local-game-state (assoc next-game-state :game-running false))
+          (assoc db :local-game-state (set-ai next-game-state))
           ))
       (assoc db :local-game-state (assoc (snakepure/initial-state 5) :game-running? false))
       )))
