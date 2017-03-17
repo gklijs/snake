@@ -65,6 +65,8 @@
       )
     ))
 
+(def ai-levels {:1 2 :2 4 :3 6 :4 8})
+
 (defn set-ai
   "Will probably be moved elsewhere, but for now sets the the next moves for the snakes"
   [game-state]
@@ -72,7 +74,7 @@
     (doseq [[k v] (:snakes game-state)]
       (if
         (not (= :0 k))
-        (swap! result #(assoc-in % [:snakes k :stored-direction] (predict-next-best-move game-state k 10)))))
+        (swap! result #(assoc-in % [:snakes k :stored-direction] (predict-next-best-move game-state k (get ai-levels k))))))
     @result))
 
 (reg-event-db
@@ -82,7 +84,7 @@
     (if local-game-state
       (let [next-game-state (snakepure/next-state local-game-state)]
         (if (and (:game-running? local-game-state) (nil? (get-in next-game-state [:snakes :0])))
-          (assoc db :local-game-state (assoc next-game-state :game-running false))
+          (assoc db :local-game-state (assoc next-game-state :game-running? false))
           (assoc db :local-game-state (set-ai next-game-state))
           ))
       (assoc db :local-game-state (assoc (snakepure/initial-state 5) :game-running? false))

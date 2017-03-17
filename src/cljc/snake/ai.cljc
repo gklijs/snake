@@ -43,12 +43,12 @@
   [snake-head direction]
   (if (= 0 (first direction))
   [
-   {:direction direction :heads (conj #{} (mapv + snake-head direction)) :excluded (mapv * [-1 -1] direction)}
+   {:direction direction :heads (conj #{} (mapv + snake-head direction)) :excluded (mapv * [-1 -1] direction) :current true}
    {:direction [1 0] :heads (conj #{} (mapv + snake-head [1 0])) :excluded direction}
    {:direction [-1 0] :heads (conj #{} (mapv + snake-head [-1 0])) :excluded direction}
    ]
   [
-   {:direction direction :heads (conj #{} (mapv + snake-head direction)) :excluded (mapv * [-1 -1] direction)}
+   {:direction direction :heads (conj #{} (mapv + snake-head direction)) :excluded (mapv * [-1 -1] direction) :current true}
    {:direction [0 1] :heads (conj #{} (mapv + snake-head [0 1])) :excluded direction}
    {:direction [0 -1] :heads (conj #{} (mapv + snake-head [0 -1])) :excluded direction}
    ]
@@ -93,8 +93,14 @@
   [{:keys [sweets my-heads] :as predict-map} not-nil]
   (let [head-to-sweets (filter #(not (empty? (clojure.set/intersection sweets (:heads %)))) my-heads)]
     (cond
-      (not (empty? head-to-sweets)) (:direction (rand-nth head-to-sweets))
-      not-nil (:direction (rand-nth my-heads))
+      (not (empty? head-to-sweets)) (let [current-move (filter #(contains? % :current) head-to-sweets)]
+                                      (if (empty? current-move)
+                                        (:direction (rand-nth head-to-sweets))
+                                        (:direction (rand-nth current-move))))
+      not-nil (let [current-move (filter #(contains? % :current) my-heads)]
+                (if (empty? current-move)
+                  (:direction (rand-nth my-heads))
+                  (:direction (rand-nth current-move))))
       :default nil)))
 
 (defn update-body
