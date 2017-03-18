@@ -133,7 +133,7 @@
   (if (get-in game-state [:snakes user-key])
     (let [last-predict-map (atom (predict-map game-state user-key))
           predict-map (atom @last-predict-map)
-          next (atom (next-move predict-map false))]
+          next (atom (next-move @predict-map false))]
       (while
         (nil? @next)
         (cond
