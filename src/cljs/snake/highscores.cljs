@@ -7,7 +7,7 @@
             [utils.websocket :refer [send-transit-game!]]))
 
 ;; -- View Components ---------------------------------------------------------
-(defonce sort-value (atom [:name nil]))
+(defonce sort-value (atom [:name false]))
 (defonce interval (atom nil))
 
 (defn update-function
@@ -22,20 +22,29 @@
   [m k v]
   (conj m (assoc v :name (name k))))
 
+(defn update-sort
+  [[key reverse?] new-key]
+  (if (= key new-key)
+    [key (not reverse?)]
+    (cond
+      (= new-key :name) [new-key false]
+      :default [new-key true])))
+
 (defn highscore-table
   "Renders the table of the highscores"
   []
   (let [game-info (subscribe [:game-info])]
     (if-let [highscores (:highscores @game-info)]
-      (let [[key operator] @sort-value
+      (let [[key reverse?] @sort-value
             unsorted-map (reduce-kv add-row `() highscores)
-            sorted-map (if operator (sort-by key operator unsorted-map) (sort-by key unsorted-map))]
+            sorted-map (if reverse? (reverse (sort-by key unsorted-map)) (sort-by key unsorted-map))]
         [:table.table.table-hover.table-striped.table-bordered
          [:thead>tr
-          [:th {:on-click #(reset! sort-value [:name nil])} "Name"]
-          [:th {:on-click #(reset! sort-value [:highest >])} "Highest"]
-          [:th {:on-click #(reset! sort-value [:games-played >])} "Games played"]
-          [:th {:on-click #(reset! sort-value [:average-float >])} "Average"]
+          [:th {:on-click #(swap! sort-value update-sort :name)} "Name"]
+          [:th {:on-click #(swap! sort-value update-sort :highest)} "Highest"]
+          [:th {:on-click #(swap! sort-value update-sort :games-played)} "Games played"]
+          [:th {:on-click #(swap! sort-value update-sort :average)} "Average"]
+          [:th {:on-click #(swap! sort-value update-sort :total)} "Total"]
           ]
          [:tbody
           (for [item sorted-map]
@@ -43,7 +52,8 @@
              [:th {:scope "row"} (str (:name item))]
              [:td (str (:highest item))]
              [:td (str (:games-played item))]
-             [:td (gstring/format "%.1f" (:average-float item))]])]
+             [:td (gstring/format "%.1f" (:average item))]
+             [:td (str (:total item))]])]
          ]))))
 
 (defn view

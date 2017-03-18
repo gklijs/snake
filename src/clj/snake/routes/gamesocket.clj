@@ -36,19 +36,19 @@
   (keyword (str (swap! key-counter inc))))
 
 (defn update-score
-  [{:keys [highest games-played average] :as score} points]
+  [{:keys [highest games-played average total] :as score} points]
   (let [new-highest (max highest points)
         new-games-played (inc games-played)
-        new-average (/ (+ points (* average games-played)) new-games-played)
-        new-float-average (float new-average)]
-    {:highest new-highest :games-played new-games-played :average new-average :average-float new-float-average}))
+        new-total (+ total points)
+        new-average (float (/ total new-games-played))]
+    {:highest new-highest :games-played new-games-played :average new-average :total new-total}))
 
 (defn save-score
   "Saves the score to be able to tell the highscores"
   [user-key points]
   (if (contains? @highscores user-key)
     (swap! highscores #(update % user-key update-score points))
-    (swap! highscores #(assoc % user-key {:highest points :games-played 1 :average points :average-float (float points)}))
+    (swap! highscores #(assoc % user-key {:highest points :games-played 1 :average points :total points}))
     ))
 
 (defn send-next-game-state

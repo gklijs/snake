@@ -7,12 +7,12 @@
 
 (defn add-all-moves
   [coll cord]
-  (into coll (reduce (partial add-valid-move cord)  #{} valid-directions)))
+  (into coll (reduce (partial add-valid-move cord) #{} valid-directions)))
 
 (defn add-some-moves
   [excluded coll cord]
   (let [search-directions (remove (into #{} excluded) valid-directions)]
-    (into coll (reduce (partial add-valid-move cord)  #{} search-directions))))
+    (into coll (reduce (partial add-valid-move cord) #{} search-directions))))
 
 (defn predict-next
   "Get the places taken first, in a map which can be easily for the next steps"
@@ -37,22 +37,22 @@
 
 (defn add-snake-bodies
   [m k snake]
-    (conj m (drop-last (:body snake))))
+  (conj m (drop-last (:body snake))))
 
 (defn get-heads
   [snake-head direction]
   (if (= 0 (first direction))
-  [
-   {:direction direction :heads (conj #{} (mapv + snake-head direction)) :excluded (mapv * [-1 -1] direction) :current true}
-   {:direction [1 0] :heads (conj #{} (mapv + snake-head [1 0])) :excluded direction}
-   {:direction [-1 0] :heads (conj #{} (mapv + snake-head [-1 0])) :excluded direction}
-   ]
-  [
-   {:direction direction :heads (conj #{} (mapv + snake-head direction)) :excluded (mapv * [-1 -1] direction) :current true}
-   {:direction [0 1] :heads (conj #{} (mapv + snake-head [0 1])) :excluded direction}
-   {:direction [0 -1] :heads (conj #{} (mapv + snake-head [0 -1])) :excluded direction}
-   ]
-  ))
+    [
+     {:direction direction :heads (conj #{} (mapv + snake-head direction)) :excluded (mapv * [-1 -1] direction) :current true}
+     {:direction [1 0] :heads (conj #{} (mapv + snake-head [1 0])) :excluded direction}
+     {:direction [-1 0] :heads (conj #{} (mapv + snake-head [-1 0])) :excluded direction}
+     ]
+    [
+     {:direction direction :heads (conj #{} (mapv + snake-head direction)) :excluded (mapv * [-1 -1] direction) :current true}
+     {:direction [0 1] :heads (conj #{} (mapv + snake-head [0 1])) :excluded direction}
+     {:direction [0 -1] :heads (conj #{} (mapv + snake-head [0 -1])) :excluded direction}
+     ]
+    ))
 
 (defn add-body-parts
   [m body-parts]
@@ -81,10 +81,10 @@
         my-heads (prune-my-heads my-first-heads bodies other-heads)]
     {
      :other-heads other-heads
-     :sweets sweets
-     :bodies bodies
-     :ahead 1
-     :my-heads my-heads
+     :sweets      sweets
+     :bodies      bodies
+     :ahead       1
+     :my-heads    my-heads
      }))
 
 
@@ -122,10 +122,10 @@
         new-my-heads (prune-my-heads (reduce update-my-head [] my-heads) new-bodies new-other-heads)]
     {
      :other-heads new-other-heads
-     :sweets new-sweets
-     :bodies new-bodies
-     :ahead new-ahead
-     :my-heads new-my-heads
+     :sweets      new-sweets
+     :bodies      new-bodies
+     :ahead       new-ahead
+     :my-heads    new-my-heads
      }))
 
 (defn predict-next-best-move
