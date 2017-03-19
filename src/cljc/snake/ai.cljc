@@ -1,25 +1,12 @@
 (ns snake.ai
   (:require [snake.snakepure :refer [valid-directions valid-cord move-snake]]))
 
-(defn add-valid-move
-  [cord coll direction]
-  (conj coll (valid-cord (mapv + direction cord))))
-
-(defn add-all-moves
-  [coll cord]
-  (into coll (reduce (partial add-valid-move cord) #{} valid-directions)))
+(defonce possible-directions #{[1 1] [1 -1] [-1 1] [-1 -1]})
 
 (defn add-some-moves
   [excluded coll cord]
   (let [search-directions (remove (into #{} excluded) valid-directions)]
-    (into coll (reduce (partial add-valid-move cord) #{} search-directions))))
-
-(defn predict-next
-  "Get the places taken first, in a map which can be easily for the next steps"
-  [snake-heads]
-  (let [snhe (if (vector? snake-heads) (conj #{} snake-heads) snake-heads)]
-    (reduce add-all-moves #{} snake-heads)
-    ))
+    (into coll (map #(valid-cord (mapv + cord %)) valid-directions))))
 
 (defn predict-next-excluded
   "Get the places taken first, in a map which can be easily for the next steps"
@@ -29,11 +16,21 @@
     (reduce (partial add-some-moves excl) #{} snhe)
     ))
 
-(defn add-other-snake-next-heads
+(defn add-other-snake-heads
   [user-key m k snake]
   (if (= user-key k)
     m
-    (into m (predict-next-excluded (first (:body snake)) (mapv * [-1 -1] (:direction snake))))))
+    (conj m (first (:body snake)))))
+
+(defn add-additional-cord
+  [ahead cord m new-x]
+  (let [new-y (- ahead new-x)]
+    (into m (map #(valid-cord (mapv + (mapv * % [new-x new-y]) cord)) possible-directions))))
+
+(defn add-additional-cords
+  [ahead m cord]
+  m
+  (into m (reduce (partial add-additional-cord ahead cord) `() (range ahead))))
 
 (defn add-snake-bodies
   [m k snake]
@@ -43,14 +40,14 @@
   [snake-head direction]
   (if (= 0 (first direction))
     [
-     {:direction direction :heads (conj #{} (mapv + snake-head direction)) :excluded (mapv * [-1 -1] direction) :current true}
-     {:direction [1 0] :heads (conj #{} (mapv + snake-head [1 0])) :excluded direction}
-     {:direction [-1 0] :heads (conj #{} (mapv + snake-head [-1 0])) :excluded direction}
+     {:direction direction :heads [(valid-cord (mapv + snake-head direction))] :excluded (mapv * [-1 -1] direction) :current true}
+     {:direction [1 0] :heads [(valid-cord (mapv + snake-head [1 0]))] :excluded direction}
+     {:direction [-1 0] :heads [(valid-cord (mapv + snake-head [-1 0]))] :excluded direction}
      ]
     [
-     {:direction direction :heads (conj #{} (mapv + snake-head direction)) :excluded (mapv * [-1 -1] direction) :current true}
-     {:direction [0 1] :heads (conj #{} (mapv + snake-head [0 1])) :excluded direction}
-     {:direction [0 -1] :heads (conj #{} (mapv + snake-head [0 -1])) :excluded direction}
+     {:direction direction :heads [(valid-cord (mapv + snake-head direction))] :excluded (mapv * [-1 -1] direction) :current true}
+     {:direction [0 1] :heads [(valid-cord (mapv + snake-head [0 1]))] :excluded direction}
+     {:direction [0 -1] :heads [(valid-cord (mapv + snake-head [0 -1]))] :excluded direction}
      ]
     ))
 
@@ -60,10 +57,10 @@
 
 (defn prune-head
   [places-taken m head-map]
-  (let [pruned-head (update head-map :heads #(set (remove places-taken %)))]
-    (if (empty? (:heads pruned-head))
+  (let [left-heads (remove places-taken (:heads head-map))]
+    (if (empty? left-heads)
       m
-      (conj m pruned-head))))
+      (conj m (assoc head-map :heads left-heads)))))
 
 (defn prune-my-heads
   "Remove paths which may lead to a collision."
@@ -71,15 +68,33 @@
   (let [places-taken (reduce add-body-parts other-heads bodies)]
     (reduce (partial prune-head places-taken) [] my-heads)))
 
+(defn add-sweet
+  [m [x y]]
+  (assoc-in m [x y] true))
+
+(defn remove-sweet
+  [m [x y]]
+  (if (contains? m x)
+    (update m x dissoc y)
+    m))
+
+(defn is-sweet
+  [sweets m [x y]]
+  (if (get-in sweets [x y])
+    (conj m true)
+    m))
+
 (defn predict-map
   "Gives back a prediction for the next step, in a format which can be used to look further"
   [game-state user-key]
-  (let [other-heads (reduce-kv (partial add-other-snake-next-heads user-key) #{} (:snakes game-state))
-        sweets (set (remove other-heads (into #{} (get-in game-state [:sweets :locations]))))
+  (let [old-heads (reduce-kv (partial add-other-snake-heads user-key) #{} (:snakes game-state))
+        other-heads (reduce (partial add-additional-cords 1) #{} old-heads)
+        sweets (reduce remove-sweet (reduce add-sweet {} (get-in game-state [:sweets :locations])) other-heads)
         bodies (reduce-kv add-snake-bodies [] (:snakes game-state))
         my-first-heads (get-heads (first (get-in game-state [:snakes user-key :body])) (get-in game-state [:snakes user-key :direction]))
         my-heads (prune-my-heads my-first-heads bodies other-heads)]
     {
+     :old-heads   old-heads
      :other-heads other-heads
      :sweets      sweets
      :bodies      bodies
@@ -91,17 +106,19 @@
 (defn next-move
   "Give the next move based on prediction, will always return non-nil if not-nil is true, else might return nil"
   [{:keys [sweets my-heads] :as predict-map} not-nil]
-  (let [head-to-sweets (filter #(not (empty? (clojure.set/intersection sweets (:heads %)))) my-heads)]
-    (cond
-      (not (empty? head-to-sweets)) (let [current-move (filter #(contains? % :current) head-to-sweets)]
-                                      (if (empty? current-move)
-                                        (:direction (rand-nth head-to-sweets))
-                                        (:direction (rand-nth current-move))))
-      not-nil (let [current-move (filter #(contains? % :current) my-heads)]
-                (if (empty? current-move)
-                  (:direction (rand-nth my-heads))
-                  (:direction (rand-nth current-move))))
-      :default nil)))
+  (if
+    (= 1 (count my-heads))
+    (:direction (first my-heads))
+    (let [head-to-sweets (filter #(not (empty? (reduce (partial is-sweet sweets) `() (:heads %)))) my-heads)]
+      (cond
+        (not (empty? head-to-sweets)) (if-let [current-move (first (filter #(contains? % :current) head-to-sweets))]
+                                        (:direction current-move)
+                                        (:direction (rand-nth head-to-sweets)))
+        not-nil (if-let [current-move (first (filter #(contains? % :current) my-heads))]
+                  (:direction current-move)
+                  (:direction (rand-nth my-heads)))
+        :default nil))
+    ))
 
 (defn update-body
   [m body]
@@ -114,13 +131,15 @@
   (conj m (update head-map :heads #(predict-next-excluded % (:excluded head-map)))))
 
 (defn update-predict-map
-  [{:keys [other-heads sweets bodies ahead my-heads] :as predict-map}]
-  (let [new-other-heads (predict-next other-heads)
-        new-sweets (clojure.set/difference sweets new-other-heads)
+  [{:keys [old-heads other-heads sweets bodies ahead my-heads] :as predict-map}]
+  (let [new-ahead (inc ahead)
+        additional-other-heads (reduce (partial add-additional-cords new-ahead) #{} old-heads)
+        new-sweets (reduce remove-sweet sweets additional-other-heads)
+        new-other-heads (into other-heads additional-other-heads)
         new-bodies (reduce update-body [] bodies)
-        new-ahead (inc ahead)
         new-my-heads (prune-my-heads (reduce update-my-head [] my-heads) new-bodies new-other-heads)]
     {
+     :old-heads   old-heads
      :other-heads new-other-heads
      :sweets      new-sweets
      :bodies      new-bodies
