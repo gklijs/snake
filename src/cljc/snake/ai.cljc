@@ -4,6 +4,7 @@
 (defonce possible-directions #{[1 1] [1 -1] [-1 1] [-1 -1]})
 
 (deftype PredictHead [direction heads sd current])
+(deftype PredictState [oldHeads otherHeads sweets bodies ahead myHeads ownDirection])
 
 (defn add-some-moves
   [search-directions coll cord]
@@ -32,23 +33,23 @@
 
 (defn add-snake-bodies
   [m k snake]
-  (conj m (drop-last (:body snake))))
+  (conj m (:body snake)))
 
 (defn get-heads
   [snake-head direction]
   (let [back (mapv * [-1 -1] direction)]
     (if (= 0 (first direction))
       [
-       (PredictHead. direction (atom (set [(valid-cord (mapv + snake-head direction))])) [direction [1 0]] true)
-       (PredictHead. direction (atom (set [(valid-cord (mapv + snake-head direction))])) [direction [-1 0]] true)
-       (PredictHead. [1 0] (atom (set [(valid-cord (mapv + snake-head [1 0]))])) [back [1 0]] false)
-       (PredictHead. [-1 0] (atom (set [(valid-cord (mapv + snake-head [-1 0]))])) [back [-1 0]] false)
+       (PredictHead. direction (volatile! (set [(valid-cord (mapv + snake-head direction))])) [direction [1 0]] true)
+       (PredictHead. direction (volatile! (set [(valid-cord (mapv + snake-head direction))])) [direction [-1 0]] true)
+       (PredictHead. [1 0] (volatile! (set [(valid-cord (mapv + snake-head [1 0]))])) [back [1 0]] false)
+       (PredictHead. [-1 0] (volatile! (set [(valid-cord (mapv + snake-head [-1 0]))])) [back [-1 0]] false)
        ]
       [
-       (PredictHead. direction (atom (set [(valid-cord (mapv + snake-head direction))])) [direction [0 1]] true)
-       (PredictHead. direction (atom (set [(valid-cord (mapv + snake-head direction))])) [direction [0 -1]] true)
-       (PredictHead. [0 1] (atom (set [(valid-cord (mapv + snake-head [0 1]))])) [back [0 1]] false)
-       (PredictHead. [0 -1] (atom (set [(valid-cord (mapv + snake-head [0 -1]))])) [back [0 -1]] false)
+       (PredictHead. direction (volatile! (set [(valid-cord (mapv + snake-head direction))])) [direction [0 1]] true)
+       (PredictHead. direction (volatile! (set [(valid-cord (mapv + snake-head direction))])) [direction [0 -1]] true)
+       (PredictHead. [0 1] (volatile! (set [(valid-cord (mapv + snake-head [0 1]))])) [back [0 1]] false)
+       (PredictHead. [0 -1] (volatile! (set [(valid-cord (mapv + snake-head [0 -1]))])) [back [0 -1]] false)
        ]
       )))
 
@@ -58,7 +59,7 @@
 
 (defn prune-head
   [places-taken m predict-head]
-  (let [left-heads (swap! (.-heads predict-head) #(remove places-taken %))]
+  (let [left-heads (vswap! (.-heads predict-head) #(remove places-taken %))]
     (if
       (empty? left-heads) m (conj m predict-head))))
 
@@ -87,84 +88,72 @@
     (conj m true)
     m))
 
-(defn predict-map
-  "Gives back a prediction for the next step, in a format which can be used to look further"
+(defn strip-body
+  [ahead m body]
+  (if (> (count body) ahead)
+    (conj m (drop-last ahead body))
+    m))
+
+(defn predict-state
+  "Updates a predict-state using the volatile's whitin"
   [game-state user-key]
-  (let [old-heads (reduce-kv (partial add-other-snake-heads user-key) #{} (:snakes game-state))
+  (let [ahead 1
+        old-heads (reduce-kv (partial add-other-snake-heads user-key) #{} (:snakes game-state))
         other-heads (reduce (partial add-additional-cords 1) #{} old-heads)
         sweets (reduce remove-sweet (reduce add-sweet {} (get-in game-state [:sweets :locations])) other-heads)
         bodies (reduce-kv add-snake-bodies [] (:snakes game-state))
+        stripped-bodies (reduce (partial strip-body ahead) [] bodies)
         my-first-heads (get-heads (first (get-in game-state [:snakes user-key :body])) (get-in game-state [:snakes user-key :direction]))
-        my-heads (prune-my-heads my-first-heads bodies other-heads)
+        my-heads (prune-my-heads my-first-heads stripped-bodies other-heads)
         own-direction (get-in game-state [:snakes user-key :direction])]
-    {
-     :old-heads     old-heads
-     :other-heads   other-heads
-     :sweets        sweets
-     :bodies        bodies
-     :ahead         1
-     :my-heads      my-heads
-     :own-direction own-direction
-     }))
+    (PredictState. old-heads (volatile! other-heads) (volatile! sweets) bodies (volatile! ahead) (volatile! my-heads) own-direction)))
 
 
 (defn next-move
-  [{:keys [sweets my-heads own-direction] :as predict-map}]
-  (cond
-    (empty? my-heads) [true own-direction]
-    (= 1 (count my-heads)) [true (.-direction (first my-heads))]
-    (and (= 2 (count my-heads)) (.-current (first my-heads)) (.-current (second my-heads))) [true own-direction]
-    :default (let [head-to-sweets (filter #(not (empty? (reduce (partial is-sweet sweets) `() @(.-heads %)))) my-heads)]
-               (cond
-                 (not (empty? head-to-sweets)) (if-let [current-move (first (filter #(.-current %) head-to-sweets))]
-                                                 [true own-direction]
-                                                 [true (.-direction (rand-nth head-to-sweets))])
-                 :default (if-let [current-move (first (filter #(.-current %) my-heads))]
-                            [false (.-direction current-move)]
-                            [false (.-direction (rand-nth my-heads))])
-                 ))
-    ))
-
-(defn update-body
-  [m body]
-  (if (> (count body) 1)
-    (conj m (drop-last body))
-    m))
+  [predict-state]
+  (let [my-heads @(.-myHeads predict-state)
+        own-direction (.-ownDirection predict-state)
+        sweets @(.-sweets predict-state)]
+    (cond
+      (empty? my-heads) [true own-direction]
+      (= 1 (count my-heads)) [true (.-direction (first my-heads))]
+      (and (= 2 (count my-heads)) (.-current (first my-heads)) (.-current (second my-heads))) [true own-direction]
+      :default (let [head-to-sweets (filter #(not (empty? (reduce (partial is-sweet sweets) `() @(.-heads %)))) my-heads)]
+                 (cond
+                   (not (empty? head-to-sweets)) (if-let [current-move (first (filter #(.-current %) head-to-sweets))]
+                                                   [true own-direction]
+                                                   [true (.-direction (rand-nth head-to-sweets))])
+                   :default (if-let [current-move (first (filter #(.-current %) my-heads))]
+                              [false (.-direction current-move)]
+                              [false (.-direction (rand-nth my-heads))])
+                   ))
+      )))
 
 (defn update-my-head
   [m predict-head]
-  (let [new-heads (swap! (.-heads predict-head) #(predict-next % (.-sd predict-head)))]
+  (let [new-heads (vswap! (.-heads predict-head) #(predict-next % (.-sd predict-head)))]
     (conj m predict-head)
     ))
 
-(defn update-predict-map
-  [{:keys [old-heads other-heads sweets bodies ahead my-heads own-direction] :as predict-map}]
-  (let [new-ahead (inc ahead)
-        additional-other-heads (reduce (partial add-additional-cords new-ahead) #{} old-heads)
-        new-sweets (reduce remove-sweet sweets additional-other-heads)
-        new-other-heads (into other-heads additional-other-heads)
-        new-bodies (reduce update-body [] bodies)
-        new-my-heads (prune-my-heads (reduce update-my-head [] my-heads) new-bodies new-other-heads)]
-    {
-     :old-heads     old-heads
-     :other-heads   new-other-heads
-     :sweets        new-sweets
-     :bodies        new-bodies
-     :ahead         new-ahead
-     :my-heads      new-my-heads
-     :own-direction own-direction
-     }))
+(defn update-predict-state
+  [predict-state]
+  (let [ahead (vswap! (.-ahead predict-state) inc)
+        additional-other-heads (reduce (partial add-additional-cords ahead) #{} (.-oldHeads predict-state))
+        sweets (vswap! (.-sweets predict-state) #(reduce remove-sweet % additional-other-heads))
+        new-other-heads (vswap! (.-otherHeads predict-state) #(into % additional-other-heads))
+        stripped-bodies (reduce (partial strip-body ahead) [] (.-bodies predict-state))
+        new-my-heads (vswap! (.-myHeads predict-state) #(prune-my-heads (reduce update-my-head [] %) stripped-bodies new-other-heads))]))
 
 (defn predict-next-best-move
   [game-state user-key max-ahead]
   (if (get-in game-state [:snakes user-key])
-    (let [predict-map (atom (predict-map game-state user-key))
-          next (atom (next-move @predict-map))]
+    (let [predict-state (predict-state game-state user-key)
+          next (volatile! (next-move predict-state))]
       (while
-        (and (false? (first @next)) (< (:ahead @predict-map) max-ahead))
-            (swap! predict-map update-predict-map)
-            (if (empty? (:my-heads @predict-map))
-              (reset! next [true (second @next)])
-              (reset! next (next-move @predict-map))))
+        (and (false? (first @next)) (< @(.-ahead predict-state) max-ahead))
+        (update-predict-state predict-state)
+        (if (empty? @(.-myHeads predict-state))
+          (vreset! next [true (second @next)])
+          (vreset! next (next-move predict-state))))
       (second @next)
       )))

@@ -65,7 +65,7 @@
       )
     ))
 
-(def ai-levels {:1 2 :2 3 :3 4 :4 5})
+(def ai-levels {:1 2 :2 4 :3 6 :4 8})
 
 (defn set-ai
   "Will probably be moved elsewhere, but for now sets the the next moves for the snakes"
