@@ -1,22 +1,78 @@
 (ns snake.single
-  (:require [re-frame.core :refer [subscribe dispatch]]
+  (:require [cljs.core.async :as a]
+            [snake.ai :refer [predict-next-best-move]]
+            [re-frame.core :refer [subscribe dispatch reg-event-db]]
             [reagent.core :as reagent :refer [atom]]
-            [utils.sketch :refer [sketch-component draw-game-state]]))
+            [quil.core :refer [frame-rate]]
+            [snake.snakepure :as snakepure]
+            [utils.sketch :refer [sketch-component draw-game-state]])
+  (:require-macros [cljs.core.async.macros :as a]))
+
+;; -- Event Handlers ----------------------------------------------------------
+
+(def ai-level (atom 4))
+(defonce ai-running (atom false))
+
+(defn set-ai
+  "Will probably be moved elsewhere, but for now sets the the next moves for the snakes"
+  [game-state]
+  (a/go
+    (when (not @ai-running))
+    (reset! ai-running true)
+    (let [run-time (time (doseq [[k v] (:snakes game-state)]
+                           (if
+                             (not (= :0 k))
+                             (dispatch [:set-direction (predict-next-best-move game-state k (get @ai-level k)) k]))))]
+      (cond
+        (> run-time 70) (swap! ai-level dec)
+        (and (< run-time 20) (< @ai-level 20)) (swap! ai-level inc)))
+    (reset! ai-running false)))
+
+(reg-event-db
+  :set-direction
+  (fn [{:keys [local-game-state] :as db} [_ new-direction user-key]]
+    (if-let [new-snake (snakepure/change-direction (get-in local-game-state [:snakes user-key]) new-direction)]
+      (assoc-in db [:local-game-state :snakes user-key] new-snake)
+      db)
+    ))
+
+(reg-event-db
+  :set-local-game-state
+  (fn
+    [db [_ new-game-state]]
+    (if (:game-running? new-game-state)
+      (set-ai new-game-state))
+    (assoc db :local-game-state new-game-state)
+    ))
+
+(reg-event-db
+  :switch-game-running
+  (fn
+    [{:keys [local-game-state] :as db} _]
+    (assoc db :local-game-state (snakepure/switch-game-running local-game-state))))
+
 
 ;; -- View Components ---------------------------------------------------------
 (defonce show-names (atom false))
 (defonce show-scores (atom false))
-(defonce last-drawn-step (atom nil))
-(defonce interval (atom nil))
 
-(defn draw
-  [enlarge]
+(defn setup-function
+  []
+  (frame-rate 7)
+  {:game-state nil :user-key :0 :show-names show-names :show-scores show-scores})
+
+(defn update-function
+  [state]
   (let [game-state (subscribe [:local-game-state])
-        step (:step @game-state)]
-    (when (not (= @last-drawn-step step))
-      (draw-game-state @game-state :0 @show-names @show-scores enlarge)
-      (reset! last-drawn-step step)
-      )))
+        new-game-state (if @game-state
+                         (let [next-game-state (snakepure/next-state @game-state)]
+                           (if (and (:game-running? @game-state) (nil? (get-in next-game-state [:snakes :0])))
+                             (assoc next-game-state :game-running? false)
+                             next-game-state))
+                         (assoc (snakepure/initial-state 5) :game-running? false))]
+    (dispatch [:set-local-game-state new-game-state])
+    (assoc state :game-state new-game-state)
+    ))
 
 (defn score
   "Renders the player's score"
@@ -48,25 +104,14 @@
        (str (if (:game-running? @local-game-state) "Pause" "Start"))
        ])))
 
-(defn update-function
-  "updated the game state, or switch off the interval when another view is loaded"
-  []
-  (let [sel-menu-item (subscribe [:sel-menu-item])]
-    (if (= @sel-menu-item "single")
-      (dispatch [:next-state])
-      (do (js/clearInterval @interval) (reset! interval nil)))))
-
 (defn view
   "The game rendering function"
   []
-  (do
-    (if (nil? @interval)
-      (reset! interval (js/setInterval #(update-function) 150)))
-    [:div
-     [:div.container.controls [:div.d-flex.justify-content-end
-                               [:div.mr-auto.p-2 [score]]
-                               (toggle-score)
-                               (toggle-name)
-                               [:div.p-2 [start-stop]]
-                               ]]
-     [sketch-component draw]]))
+  [:div
+   [:div.container.controls [:div.d-flex.justify-content-end
+                             [:div.mr-auto.p-2 [score]]
+                             (toggle-score)
+                             (toggle-name)
+                             [:div.p-2 [start-stop]]
+                             ]]
+   [sketch-component setup-function update-function]])

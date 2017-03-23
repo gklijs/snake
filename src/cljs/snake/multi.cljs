@@ -1,13 +1,31 @@
 (ns snake.multi
-  (:require [reagent.core :as reagent :refer [atom]]
+  (:require [cljs.core.async :as a]
+            [reagent.core :as reagent :refer [atom]]
             [re-frame.core :refer [subscribe dispatch]]
+            [quil.core :refer [frame-rate]]
             [snake.validation :refer [valid-registration-map? valid-new-direction-map?]]
             [utils.sketch :refer [sketch-component draw-game-state]]
-            [utils.websocket :refer [send-transit-game!]]))
+            [utils.websocket :refer [send-transit-game!]])
+  (:require-macros [cljs.core.async.macros :as a]))
 
 (defonce last-drawn-step (atom nil))
 (defonce show-names (atom false))
 (defonce show-scores (atom false))
+
+(defn setup-function
+  [user-key]
+  (frame-rate 10)
+  {:game-state nil :user-key user-key :show-names show-names :show-scores show-scores})
+
+(defn update-function
+  [state]
+  (let [game-state (subscribe [:remote-game-state])
+        last-step (:step @game-state)]
+    (a/go
+      (while
+        (= last-step (:step @game-state))
+        (a/<! (a/timeout 10))))
+    (assoc state :game-state @game-state)))
 
 (defn message-input []
   (let [value (atom nil)]
@@ -126,7 +144,7 @@
   (fn []
     (let [game-info (subscribe [:game-info])]
       (if-let [user-key (:user-key @game-info)]
-        [sketch-component (partial draw user-key)]))))
+        [sketch-component #(setup-function user-key) update-function]))))
 
 (defn view
   "The multi rendering function"

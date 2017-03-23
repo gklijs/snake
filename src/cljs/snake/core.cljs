@@ -1,7 +1,6 @@
 (ns snake.core
   (:require-macros [reagent.ratom :refer [reaction]])
-  (:require [snake.ai :refer [predict-next-best-move]]
-            [snake.snakepure :as snakepure]
+  (:require [snake.snakepure :as snakepure]
             [snake.presentation :as presentation]
             [snake.home :as home]
             [snake.single :as single]
@@ -50,10 +49,9 @@
   (fn [{:keys [local-game-state sel-menu-item slide] :as db} [_ new-direction]]
     (cond
       (= sel-menu-item "single")
-      (let [new-snake (snakepure/change-direction (get-in local-game-state [:snakes :0]) new-direction)]
-        (if new-snake
-          (assoc-in db [:local-game-state :snakes :0] new-snake)
-          db))
+      (if-let [new-snake (snakepure/change-direction (get-in local-game-state [:snakes :0]) new-direction)]
+        (assoc-in db [:local-game-state :snakes :0] new-snake)
+        db)
       (= sel-menu-item "multi")
       (do (multi/send-direction new-direction) db)
       (= sel-menu-item "presentation")
@@ -64,37 +62,6 @@
       :default db
       )
     ))
-
-(def ai-levels {:1 2 :2 4 :3 6 :4 8})
-
-(defn set-ai
-  "Will probably be moved elsewhere, but for now sets the the next moves for the snakes"
-  [game-state]
-  (let [result (atom game-state)]
-    (doseq [[k v] (:snakes game-state)]
-      (if
-        (not (= :0 k))
-        (swap! result #(assoc-in % [:snakes k :stored-direction] (predict-next-best-move game-state k (get ai-levels k))))))
-    @result))
-
-(reg-event-db
-  :next-state
-  (fn
-    [{:keys [local-game-state] :as db} _]
-    (if local-game-state
-      (let [next-game-state (snakepure/next-state local-game-state)]
-        (if (and (:game-running? local-game-state) (nil? (get-in next-game-state [:snakes :0])))
-          (assoc db :local-game-state (assoc next-game-state :game-running? false))
-          (assoc db :local-game-state (set-ai next-game-state))
-          ))
-      (assoc db :local-game-state (assoc (snakepure/initial-state 5) :game-running? false))
-      )))
-
-(reg-event-db
-  :switch-game-running
-  (fn
-    [{:keys [local-game-state] :as db} _]
-    (assoc db :local-game-state (snakepure/switch-game-running local-game-state))))
 
 (reg-event-db
   :sel-menu-item
