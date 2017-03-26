@@ -118,15 +118,12 @@
       (empty? my-heads) [true own-direction]
       (= 1 (count my-heads)) [true (.-direction (first my-heads))]
       (and (= 2 (count my-heads)) (.-current (first my-heads)) (.-current (second my-heads))) [true own-direction]
-      :default (let [head-to-sweets (filter #(not (empty? (reduce (partial is-sweet sweets) `() @(.-heads %)))) my-heads)]
-                 (cond
-                   (not (empty? head-to-sweets)) (if-let [current-move (first (filter #(.-current %) head-to-sweets))]
-                                                   [true own-direction]
-                                                   [true (.-direction (rand-nth head-to-sweets))])
-                   :default (if-let [current-move (first (filter #(.-current %) my-heads))]
-                              [false (.-direction current-move)]
-                              [false (.-direction (rand-nth my-heads))])
-                   ))
+      :default (if-let [head-to-sweet (first (filter #(not (empty? (reduce (partial is-sweet sweets) `() @(.-heads %)))) my-heads))]
+                 [true (.-direction head-to-sweet)]
+                 (if-let [current-move (first (filter #(.-current %) my-heads))]
+                   [false own-direction]
+                   [false (.-direction (rand-nth my-heads))])
+                 )
       )))
 
 (defn update-my-head
@@ -148,12 +145,12 @@
   [game-state user-key max-ahead]
   (if (get-in game-state [:snakes user-key])
     (let [predict-state (predict-state game-state user-key)
-          next (volatile! (next-move predict-state))]
+          nextm (volatile! (next-move predict-state))]
       (while
-        (and (false? (first @next)) (< @(.-ahead predict-state) max-ahead))
+        (and (false? (first @nextm)) (< @(.-ahead predict-state) max-ahead))
         (update-predict-state predict-state)
         (if (empty? @(.-myHeads predict-state))
-          (vreset! next [true (second @next)])
-          (vreset! next (next-move predict-state))))
-      (second @next)
+          (vreset! nextm [true (second @nextm)])
+          (vreset! nextm (next-move predict-state))))
+      (second @nextm)
       )))

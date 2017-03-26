@@ -19,10 +19,12 @@
   (a/go
     (when (not @ai-running))
     (reset! ai-running true)
-    (let [run-time (time (doseq [[k v] (:snakes game-state)]
+    (let [start# (system-time)
+          _ (doseq [[k v] (:snakes game-state)]
                            (if
                              (not (= :0 k))
-                             (dispatch [:set-direction (predict-next-best-move game-state k (get @ai-level k)) k]))))]
+                             (dispatch [:set-direction (predict-next-best-move game-state k @ai-level ) k])))
+          run-time (- (system-time) start#)]
       (cond
         (> run-time 70) (swap! ai-level dec)
         (and (< run-time 20) (< @ai-level 20)) (swap! ai-level inc)))
