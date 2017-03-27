@@ -144,9 +144,10 @@
   (let [sel-menu-item (subscribe [:sel-menu-item])]
     (fn
       []
-      (cond
-        (= @sel-menu-item value) [:button.btn.btn-outline-success {:type "button"} value]
-        :else [:button.btn.btn-outline-secondary {:type "button" :on-click #(dispatch [:sel-menu-item value])} value]
+      (if
+        (= @sel-menu-item value)
+        [:button.btn.btn-outline-success {:type "button"} value]
+        [:button.btn.btn-outline-secondary {:type "button" :on-click #(dispatch [:sel-menu-item value])} value]
         ))))
 
 (defn content-switcher

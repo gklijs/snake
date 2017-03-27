@@ -33,7 +33,7 @@
 
 (defn add-snake-bodies
   [m k snake]
-  (conj m (:body snake)))
+  (conj! m (:body snake)))
 
 (defn get-heads
   [snake-head direction]
@@ -91,7 +91,7 @@
 (defn strip-body
   [ahead m body]
   (if (> (count body) ahead)
-    (conj m (drop-last ahead body))
+    (conj! m (drop-last ahead body))
     m))
 
 (defn predict-state
@@ -101,8 +101,8 @@
         old-heads (reduce-kv (partial add-other-snake-heads user-key) #{} (:snakes game-state))
         other-heads (reduce (partial add-additional-cords 1) #{} old-heads)
         sweets (reduce remove-sweet (reduce add-sweet {} (get-in game-state [:sweets :locations])) other-heads)
-        bodies (reduce-kv add-snake-bodies [] (:snakes game-state))
-        stripped-bodies (reduce (partial strip-body ahead) [] bodies)
+        bodies (persistent! (reduce-kv add-snake-bodies (transient []) (:snakes game-state)))
+        stripped-bodies (persistent! (reduce (partial strip-body ahead) (transient []) bodies))
         my-first-heads (get-heads (first (get-in game-state [:snakes user-key :body])) (get-in game-state [:snakes user-key :direction]))
         my-heads (prune-my-heads my-first-heads stripped-bodies other-heads)
         own-direction (get-in game-state [:snakes user-key :direction])]
@@ -138,7 +138,7 @@
         additional-other-heads (reduce (partial add-additional-cords ahead) #{} (.-oldHeads predict-state))
         sweets (vswap! (.-sweets predict-state) #(reduce remove-sweet % additional-other-heads))
         new-other-heads (vswap! (.-otherHeads predict-state) #(into % additional-other-heads))
-        stripped-bodies (reduce (partial strip-body ahead) [] (.-bodies predict-state))
+        stripped-bodies (persistent! (reduce (partial strip-body ahead) (transient []) (.-bodies predict-state)))
         new-my-heads (vswap! (.-myHeads predict-state) #(prune-my-heads (reduce update-my-head [] %) stripped-bodies new-other-heads))]))
 
 (defn predict-next-best-move
