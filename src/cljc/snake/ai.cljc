@@ -72,20 +72,23 @@
 
 (defn add-sweet
   [m [x y]]
-  (assoc-in m [x y] true))
+  (if-let [inner-map (get m x)]
+    (assoc! m x (assoc! inner-map y true))
+    (assoc! m x (transient {y true}))
+    ))
 
 (defn remove-sweet
   [m [x y]]
-  (if (contains? m x)
+  (if-let [inner-map (get m x)]
     (if (= (count (get m x)) 1)
-      (dissoc m x)
-      (update m x dissoc y))
+      (dissoc! m x)
+      (assoc! m x (dissoc! inner-map y)))
     m))
 
 (defn is-sweet
   [sweets m [x y]]
-  (if (get-in sweets [x y])
-    (conj m true)
+  (if (get (get sweets x) y)
+    (conj! m true)
     m))
 
 (defn strip-body
@@ -100,25 +103,25 @@
   (let [ahead 1
         old-heads (reduce-kv (partial add-other-snake-heads user-key) #{} (:snakes game-state))
         other-heads (reduce (partial add-additional-cords 1) #{} old-heads)
-        sweets (reduce remove-sweet (reduce add-sweet {} (get-in game-state [:sweets :locations])) other-heads)
+        sweets (reduce remove-sweet (reduce add-sweet (transient {}) (get-in game-state [:sweets :locations])) other-heads)
         bodies (persistent! (reduce-kv add-snake-bodies (transient []) (:snakes game-state)))
         stripped-bodies (persistent! (reduce (partial strip-body ahead) (transient []) bodies))
         my-first-heads (get-heads (first (get-in game-state [:snakes user-key :body])) (get-in game-state [:snakes user-key :direction]))
         my-heads (prune-my-heads my-first-heads stripped-bodies other-heads)
         own-direction (get-in game-state [:snakes user-key :direction])]
-    (PredictState. old-heads (volatile! other-heads) (volatile! sweets) bodies (volatile! ahead) (volatile! my-heads) own-direction)))
+    (PredictState. old-heads (volatile! other-heads) sweets bodies (volatile! ahead) (volatile! my-heads) own-direction)))
 
 
 (defn next-move
   [predict-state]
   (let [my-heads @(.-myHeads predict-state)
         own-direction (.-ownDirection predict-state)
-        sweets @(.-sweets predict-state)]
+        sweets (.-sweets predict-state)]
     (cond
       (empty? my-heads) [true own-direction]
       (= 1 (count my-heads)) [true (.-direction (first my-heads))]
       (and (= 2 (count my-heads)) (.-current (first my-heads)) (.-current (second my-heads))) [true own-direction]
-      :default (if-let [head-to-sweet (first (filter #(not (empty? (reduce (partial is-sweet sweets) `() @(.-heads %)))) my-heads))]
+      :default (if-let [head-to-sweet (first (filter #(> (count (reduce (partial is-sweet sweets) (transient []) @(.-heads %))) 0) my-heads))]
                  [true (.-direction head-to-sweet)]
                  (if-let [current-move (first (filter #(.-current %) my-heads))]
                    [false own-direction]
@@ -136,7 +139,7 @@
   [predict-state]
   (let [ahead (vswap! (.-ahead predict-state) inc)
         additional-other-heads (reduce (partial add-additional-cords ahead) #{} (.-oldHeads predict-state))
-        sweets (vswap! (.-sweets predict-state) #(reduce remove-sweet % additional-other-heads))
+        sweets (reduce remove-sweet (.-sweets predict-state) additional-other-heads)
         new-other-heads (vswap! (.-otherHeads predict-state) #(into % additional-other-heads))
         stripped-bodies (persistent! (reduce (partial strip-body ahead) (transient []) (.-bodies predict-state)))
         new-my-heads (vswap! (.-myHeads predict-state) #(prune-my-heads (reduce update-my-head [] %) stripped-bodies new-other-heads))]))
