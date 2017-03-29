@@ -6,22 +6,14 @@
 (deftype PredictHead [direction heads sd current])
 (deftype PredictState [oldHeads otherHeads sweets bodies ahead myHeads ownDirection])
 
-(defn into!
-  "Needed to use into when to and from are transients"
-  ([to from]
-   (if (instance? clojure.lang.LazySeq from)
-    (reduce conj! to from)
-    (reduce conj! to (persistent! from))
-    )))
-
 (defn add-some-moves
   [search-directions coll cord]
-  (into coll (map #(valid-cord (mapv + cord %)) search-directions)))
+  (reduce conj! coll (map #(valid-cord (mapv + cord %)) search-directions)))
 
 (defn predict-next
   "Get the places taken first, in a map which can be easily for the next steps"
   [snake-heads search-directions]
-  (reduce (partial add-some-moves search-directions) #{} snake-heads))
+  (persistent! (reduce (partial add-some-moves search-directions) (transient #{})  snake-heads)))
 
 (defn add-other-snake-heads
   [user-key m k snake]
@@ -69,14 +61,14 @@
   [places-taken m predict-head]
   (let [left-heads (vswap! (.-heads predict-head) #(remove places-taken %))]
     (if
-      (empty? left-heads) m (conj m predict-head))))
+      (empty? left-heads) m (conj! m predict-head))))
 
 
 (defn prune-my-heads
   "Remove paths which may lead to a collision."
   [my-heads bodies other-heads]
   (let [places-taken (persistent! (reduce add-body-parts (transient other-heads) bodies))]
-    (reduce (partial prune-head places-taken) [] my-heads)))
+    (persistent! (reduce (partial prune-head places-taken) (transient []) my-heads))))
 
 (defn add-sweet
   [m [x y]]
@@ -140,17 +132,25 @@
 (defn update-my-head
   [m predict-head]
   (let [new-heads (vswap! (.-heads predict-head) #(predict-next % (.-sd predict-head)))]
-    (conj m predict-head)
+    (conj! m predict-head)
     ))
+
+(defn into!
+  "Needed to use into when to and from are transients"
+  ([to from]
+   (if (instance? clojure.lang.LazySeq from)
+     (reduce conj! to from)
+     (reduce conj! to (persistent! from))
+     )))
 
 (defn update-predict-state
   [predict-state]
   (let [ahead (vswap! (.-ahead predict-state) inc)
         additional-other-heads (persistent! (reduce (partial add-additional-cords ahead) (transient #{}) (.-oldHeads predict-state)))
         sweets (reduce remove-sweet (.-sweets predict-state) additional-other-heads)
-        new-other-heads (vswap! (.-otherHeads predict-state) #(into % additional-other-heads))
+        new-other-heads (vswap!(.-otherHeads predict-state) #(persistent! (reduce conj! (transient %) additional-other-heads)))
         stripped-bodies (persistent! (reduce (partial strip-body ahead) (transient []) (.-bodies predict-state)))
-        new-my-heads (vswap! (.-myHeads predict-state) #(prune-my-heads (reduce update-my-head [] %) stripped-bodies new-other-heads))]))
+        new-my-heads (vswap! (.-myHeads predict-state) #(prune-my-heads (persistent! (reduce update-my-head (transient []) %)) stripped-bodies new-other-heads))]))
 
 (defn predict-next-best-move
   [game-state user-key max-ahead]

@@ -25,10 +25,9 @@
                 (not (= :0 k))
                 (dispatch [:set-direction (predict-next-best-move game-state k @ai-level) k])))
           run-time (- (system-time) start#)]
-      (print (str "Ran " run-time " at level: " @ai-level))
       (cond
         (> run-time 70) (swap! ai-level dec)
-        (and (< run-time 20) (< @ai-level 20)) (swap! ai-level inc)))
+        (and (< run-time 30) (< @ai-level 10)) (swap! ai-level inc)))
     (reset! ai-running false)))
 
 (reg-event-db
