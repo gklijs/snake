@@ -6,6 +6,14 @@
 (deftype PredictHead [direction heads sd current])
 (deftype PredictState [oldHeads otherHeads sweets bodies ahead myHeads ownDirection])
 
+(defn into!
+  "Needed to use into when to and from are transients"
+  ([to from]
+   (if (instance? clojure.lang.LazySeq from)
+    (reduce conj! to from)
+    (reduce conj! to (persistent! from))
+    )))
+
 (defn add-some-moves
   [search-directions coll cord]
   (into coll (map #(valid-cord (mapv + cord %)) search-directions)))
@@ -24,12 +32,12 @@
 (defn add-additional-cord
   [ahead cord m new-x]
   (let [new-y (- ahead new-x)]
-    (into m (map #(valid-cord (mapv + (mapv * % [new-x new-y]) cord)) possible-directions))))
+    (reduce conj! m (map #(valid-cord (mapv + (mapv * % [new-x new-y]) cord)) possible-directions))))
 
 (defn add-additional-cords
   [ahead m cord]
   m
-  (into m (reduce (partial add-additional-cord ahead cord) `() (range (+ ahead 1)))))
+  (reduce conj! m (persistent! (reduce (partial add-additional-cord ahead cord) (transient []) (range (+ ahead 1))))))
 
 (defn add-snake-bodies
   [m k snake]
@@ -55,7 +63,7 @@
 
 (defn add-body-parts
   [m body-parts]
-  (into m body-parts))
+  (reduce conj! m body-parts))
 
 (defn prune-head
   [places-taken m predict-head]
@@ -67,7 +75,7 @@
 (defn prune-my-heads
   "Remove paths which may lead to a collision."
   [my-heads bodies other-heads]
-  (let [places-taken (reduce add-body-parts other-heads bodies)]
+  (let [places-taken (persistent! (reduce add-body-parts (transient other-heads) bodies))]
     (reduce (partial prune-head places-taken) [] my-heads)))
 
 (defn add-sweet
@@ -102,7 +110,7 @@
   [game-state user-key]
   (let [ahead 1
         old-heads (reduce-kv (partial add-other-snake-heads user-key) #{} (:snakes game-state))
-        other-heads (reduce (partial add-additional-cords 1) #{} old-heads)
+        other-heads (persistent! (reduce (partial add-additional-cords ahead) (transient #{}) old-heads))
         sweets (reduce remove-sweet (reduce add-sweet (transient {}) (get-in game-state [:sweets :locations])) other-heads)
         bodies (persistent! (reduce-kv add-snake-bodies (transient []) (:snakes game-state)))
         stripped-bodies (persistent! (reduce (partial strip-body ahead) (transient []) bodies))
@@ -138,7 +146,7 @@
 (defn update-predict-state
   [predict-state]
   (let [ahead (vswap! (.-ahead predict-state) inc)
-        additional-other-heads (reduce (partial add-additional-cords ahead) #{} (.-oldHeads predict-state))
+        additional-other-heads (persistent! (reduce (partial add-additional-cords ahead) (transient #{}) (.-oldHeads predict-state)))
         sweets (reduce remove-sweet (.-sweets predict-state) additional-other-heads)
         new-other-heads (vswap! (.-otherHeads predict-state) #(into % additional-other-heads))
         stripped-bodies (persistent! (reduce (partial strip-body ahead) (transient []) (.-bodies predict-state)))
