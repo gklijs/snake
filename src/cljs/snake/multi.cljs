@@ -4,17 +4,16 @@
             [re-frame.core :refer [subscribe dispatch]]
             [quil.core :refer [frame-rate]]
             [snake.validation :refer [valid-registration-map? valid-new-direction-map?]]
-            [utils.sketch :refer [sketch-component draw-game-state]]
+            [utils.sketch :refer [sketch-component]]
             [utils.websocket :refer [send-transit-game!]])
   (:require-macros [cljs.core.async.macros :as a]))
 
-(defonce last-drawn-step (atom nil))
 (defonce show-names (atom false))
 (defonce show-scores (atom false))
 
 (defn setup-function
   [user-key]
-  (frame-rate 10)
+  (frame-rate 7)
   {:game-state nil :user-key user-key :show-names show-names :show-scores show-scores})
 
 (defn update-function
@@ -128,15 +127,6 @@
      (for [[i message] (map-indexed vector @messages)]
        ^{:key i}
        [:li message])]))
-
-(defn draw
-  [user-key factor]
-  (let [game-state (subscribe [:remote-game-state])
-        step (:step @game-state)]
-    (when (not (= @last-drawn-step step))
-      (draw-game-state @game-state user-key @show-names @show-scores factor)
-      (reset! last-drawn-step step)
-      )))
 
 (defn render-main
   "Renders the main view, either the login, or the board"

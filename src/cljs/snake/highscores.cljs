@@ -3,7 +3,6 @@
             [reagent.core :as reagent :refer [atom]]
             [goog.string :as gstring]
             [goog.string.format]
-            [utils.sketch :refer [sketch-component draw-game-state]]
             [utils.websocket :refer [send-transit-game!]]))
 
 ;; -- View Components ---------------------------------------------------------

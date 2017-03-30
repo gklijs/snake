@@ -5,7 +5,7 @@
             [reagent.core :as reagent :refer [atom]]
             [quil.core :refer [frame-rate]]
             [snake.snakepure :as snakepure]
-            [utils.sketch :refer [sketch-component draw-game-state]])
+            [utils.sketch :refer [sketch-component]])
   (:require-macros [cljs.core.async.macros :as a]))
 
 ;; -- Event Handlers ----------------------------------------------------------
